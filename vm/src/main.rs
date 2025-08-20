@@ -1,4 +1,5 @@
-use std::{env, error::Error, fmt::Display, fs, process};
+use clap::Parser;
+use std::{error::Error, fmt::Display, fs, process};
 
 const STACK_SIZE: usize = 16;
 
@@ -93,19 +94,23 @@ impl Vm {
     }
 }
 
-fn main() {
-    // grab args
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        eprintln!("usage: {} <filename>", args[0]);
-        process::exit(1);
-    }
+#[derive(Parser, Debug)]
+#[command(author, version, about)]
+struct Cli {
+    /// input program file
+    filename: String,
 
-    let filename = &args[1];
+    /// show the top of the stack after execution
+    #[arg(short, long)]
+    show_top: bool,
+}
+
+fn main() {
+    let cli = Cli::parse();
 
     // read file
-    let code = fs::read_to_string(filename).unwrap_or_else(|err| {
-        eprintln!("failed to read {}: {}", filename, err);
+    let code = fs::read_to_string(&cli.filename).unwrap_or_else(|err| {
+        eprintln!("failed to read {}: {}", cli.filename, err);
         process::exit(1);
     });
 
@@ -116,5 +121,7 @@ fn main() {
         process::exit(1);
     }
 
-    println!("top of stack: {}", vm.top());
+    if cli.show_top {
+        println!("top of stack: {}", vm.top());
+    }
 }
