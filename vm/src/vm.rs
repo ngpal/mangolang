@@ -1,18 +1,19 @@
+use std::cmp::max;
+
 use crate::error::{RuntimeError, RuntimeResult};
 
-const STACK_SIZE: usize = 16;
-const LOCALS_SIZE: usize = 16;
+const MEM_SIZE: usize = 0x10000;
 
 #[derive(Debug)]
 pub enum Instruction {
-    Push(u32),
-    Load(u8),
-    Store(u8),
+    Push(u16),
+    Load(u16),
+    Store(u16),
     Icmp,
-    Jmp(i8),
-    Jlt(i8),
-    Jgt(i8),
-    Jeq(i8),
+    Jmp(i16),
+    Jlt(i16),
+    Jgt(i16),
+    Jeq(i16),
     Not,
     Iadd,
     Isub,
@@ -24,177 +25,213 @@ pub enum Instruction {
 
 #[derive(Default)]
 pub struct Flags {
-    n: bool,
-    z: bool,
-    v: bool,
+    pub n: bool,
+    pub z: bool,
+    pub v: bool,
 }
 
-pub struct Vm {
-    pub stack: [u32; STACK_SIZE],
-    pub locals: [u32; LOCALS_SIZE],
+pub struct Vm<'ip> {
+    pub memory: [u8; MEM_SIZE],
     pub flags: Flags,
-    pub sp: usize,
-    ip: usize,
+    pub sp: u16,
+    pub ip: u16,
+    pub fp: u16,
+    pub program: &'ip [Instruction],
 }
 
-impl Vm {
-    pub fn new() -> Self {
-        Self {
-            stack: [0; STACK_SIZE],
-            locals: [0; LOCALS_SIZE],
+impl<'ip> Vm<'ip> {
+    pub fn new(program: &'ip [Instruction]) -> RuntimeResult<Self> {
+        let mut ret = Self {
+            memory: [0; MEM_SIZE],
             flags: Flags::default(),
             ip: 0,
-            sp: 0,
-        }
-    }
+            fp: 0xFFFE,
+            sp: 0xFFFE,
+            program,
+        };
 
-    pub fn exec(&mut self, program: &[Instruction]) -> RuntimeResult<()> {
-        while self.ip < program.len() {
-            let instr = &program[self.ip];
-            match instr {
-                Instruction::Push(val) => {
-                    self.stack[self.sp] = *val;
-                    self.inc_sp()?;
-                }
-                Instruction::Iadd
-                | Instruction::Isub
-                | Instruction::Imul
-                | Instruction::Idiv
-                | Instruction::Icmp => {
-                    let right = self.top();
-                    self.dec_sp()?;
-                    let left = self.top();
-                    self.dec_sp()?;
-
-                    let (result, overflow) = match instr {
-                        Instruction::Iadd => left.overflowing_add(right),
-                        Instruction::Isub | Instruction::Icmp => left.overflowing_sub(right),
-                        Instruction::Imul => left.overflowing_mul(right),
-                        Instruction::Idiv => {
-                            if right == 0 {
-                                return Err(RuntimeError("division by zero".into()));
-                            }
-                            let (res, overflow) = (left as i32).overflowing_div(right as i32);
-                            (res as u32, overflow)
-                        }
-                        _ => unreachable!(),
-                    };
-
-                    if !(matches!(instr, Instruction::Icmp)) {
-                        self.stack[self.sp] = result;
-                        self.inc_sp()?;
-                    }
-
-                    self.set_flags(result, overflow);
-                }
-                Instruction::Neg => {
-                    let operand = self.top();
-                    self.stack[self.sp - 1] = (!operand).wrapping_add(1);
-                }
-                Instruction::Store(s) => {
-                    if *s as usize >= LOCALS_SIZE {
-                        return Err(RuntimeError(format!(
-                            "Locals array index {} is out of bounds",
-                            s
-                        )));
-                    }
-                    self.locals[*s as usize] = self.pop()?;
-                }
-                Instruction::Load(s) => {
-                    if *s as usize >= LOCALS_SIZE {
-                        return Err(RuntimeError(format!("Load index {} out of bounds", s)));
-                    }
-                    self.push(self.locals[*s as usize])?
-                }
-                Instruction::Jmp(offset) => {
-                    // offset is signed relative to current ip
-                    let new_ip = (self.ip as isize).wrapping_add(*offset as isize);
-                    if new_ip < 0 || new_ip as usize >= program.len() {
-                        return Err(RuntimeError(format!("invalid jump target {}", new_ip)));
-                    }
-                    self.ip = new_ip as usize;
-                }
-                Instruction::Jlt(offset) => {
-                    if self.flags.n {
-                        let new_ip = (self.ip as isize).wrapping_add(*offset as isize);
-                        if new_ip < 0 || new_ip as usize >= program.len() {
-                            return Err(RuntimeError(format!("invalid jump target {}", new_ip)));
-                        }
-                        self.ip = new_ip as usize;
-                    }
-                }
-                Instruction::Jgt(offset) => {
-                    if !self.flags.z && !self.flags.n {
-                        let new_ip = (self.ip as isize).wrapping_add(*offset as isize);
-                        if new_ip < 0 || new_ip as usize >= program.len() {
-                            return Err(RuntimeError(format!("invalid jump target {}", new_ip)));
-                        }
-                        self.ip = new_ip as usize;
-                    }
-                }
-                Instruction::Jeq(offset) => {
-                    if self.flags.z {
-                        let new_ip = (self.ip as isize).wrapping_add(*offset as isize);
-                        if new_ip < 0 || new_ip as usize >= program.len() {
-                            return Err(RuntimeError(format!("invalid jump target {}", new_ip)));
-                        }
-                        self.ip = new_ip as usize;
-                    }
-                }
-                Instruction::Not => {
-                    let val = self.top();
-                    self.stack[self.sp - 1] = if val == 0 { 1 } else { 0 };
-                    self.set_flags(self.top(), false);
-                }
-                Instruction::Halt => return Ok(()),
-            }
-
-            self.ip += 1;
-        }
-        Ok(())
-    }
-
-    fn inc_sp(&mut self) -> RuntimeResult<()> {
-        if self.sp >= STACK_SIZE {
-            Err(RuntimeError("stack overflow".into()))
-        } else {
-            self.sp += 1;
-            Ok(())
-        }
-    }
-
-    fn dec_sp(&mut self) -> RuntimeResult<()> {
-        if self.sp == 0 {
-            Err(RuntimeError("stack underflow".into()))
-        } else {
-            self.sp -= 1;
-            Ok(())
-        }
-    }
-
-    pub fn top(&self) -> u32 {
-        if self.sp == 0 {
-            0
-        } else {
-            self.stack[self.sp - 1]
-        }
-    }
-
-    pub fn pop(&mut self) -> RuntimeResult<u32> {
-        let ret = self.top();
-        self.dec_sp()?;
+        ret.allocate_locals(program)?;
         Ok(ret)
     }
 
-    pub fn push(&mut self, val: u32) -> RuntimeResult<()> {
-        self.stack[self.sp] = val;
-        self.inc_sp()?;
+    fn allocate_locals(&mut self, program: &[Instruction]) -> RuntimeResult<()> {
+        let mut max_local = 0;
+        for instr in program {
+            if let Instruction::Store(x) = instr {
+                max_local = max(*x, max_local)
+            }
+        }
+
+        let space_needed = 2 * (max_local + 1);
+        if self.sp < space_needed {
+            return Err(RuntimeError(
+                "memory overflow - too many local variables".into(),
+            ));
+        }
+
+        self.sp -= space_needed;
         Ok(())
     }
 
-    fn set_flags(&mut self, result: u32, overflow: bool) {
+    fn push_word(&mut self, val: u16) -> RuntimeResult<()> {
+        if self.sp < 2 {
+            return Err(RuntimeError("stack overflow".into()));
+        }
+        self.sp -= 2;
+        let bytes = val.to_le_bytes(); // little-endian
+        self.memory[self.sp as usize] = bytes[0];
+        self.memory[self.sp as usize + 1] = bytes[1];
+        Ok(())
+    }
+
+    fn pop_word(&mut self) -> RuntimeResult<u16> {
+        if (self.sp as usize) + 2 > MEM_SIZE {
+            return Err(RuntimeError("stack underflow".into()));
+        }
+        let val = u16::from_le_bytes(
+            self.memory[self.sp as usize..self.sp as usize + 2]
+                .try_into()
+                .unwrap(),
+        );
+        self.sp += 2;
+        Ok(val)
+    }
+
+    // Return halt signal
+    pub fn exec_instruction(&mut self) -> RuntimeResult<bool> {
+        let instr = &self.program[self.ip as usize];
+
+        match instr {
+            Instruction::Push(val) => self.push_word(*val)?,
+            Instruction::Iadd
+            | Instruction::Isub
+            | Instruction::Imul
+            | Instruction::Idiv
+            | Instruction::Icmp => {
+                let right = self.pop_word()?;
+                let left = self.pop_word()?;
+
+                let (result, overflow) = match instr {
+                    Instruction::Iadd => left.overflowing_add(right),
+                    Instruction::Isub | Instruction::Icmp => left.overflowing_sub(right),
+                    Instruction::Imul => left.overflowing_mul(right),
+                    Instruction::Idiv => {
+                        if right == 0 {
+                            return Err(RuntimeError("division by zero".into()));
+                        }
+                        let (res, overflow) = (left as i16).overflowing_div(right as i16);
+                        (res as u16, overflow)
+                    }
+                    _ => unreachable!(),
+                };
+
+                if !(matches!(instr, Instruction::Icmp)) {
+                    self.push_word(result)?;
+                }
+
+                self.set_flags(result, overflow);
+            }
+            Instruction::Neg => {
+                let operand = self.pop_word()?;
+                self.push_word((!operand).wrapping_add(1))?
+            }
+            Instruction::Store(offset) => {
+                let addr = self.fp - offset * 2;
+                let val = self.pop_word()?;
+                if addr as usize + 1 >= MEM_SIZE {
+                    return Err(RuntimeError(format!(
+                        "invalid memory access 0x{:04X}",
+                        addr
+                    )));
+                }
+                let bytes = val.to_le_bytes();
+                self.memory[addr as usize] = bytes[0];
+                self.memory[addr as usize + 1] = bytes[1];
+            }
+            Instruction::Load(offset) => {
+                let addr = self.fp - offset * 2;
+                if addr as usize + 1 >= MEM_SIZE {
+                    return Err(RuntimeError(format!(
+                        "invalid memory access 0x{:04X}",
+                        addr
+                    )));
+                }
+                let val = u16::from_le_bytes(
+                    self.memory[addr as usize..addr as usize + 2]
+                        .try_into()
+                        .unwrap(),
+                );
+                self.push_word(val)?;
+            }
+            Instruction::Jmp(offset) => {
+                let new_ip = (self.ip as isize).wrapping_add(*offset as isize);
+                if new_ip < 0 || new_ip as usize >= self.program.len() {
+                    return Err(RuntimeError(format!("invalid jump target {}", new_ip)));
+                }
+                self.ip = new_ip as u16;
+                return Ok(false);
+            }
+            Instruction::Jlt(offset) => {
+                if self.flags.n {
+                    let new_ip = (self.ip as isize).wrapping_add(*offset as isize);
+                    if new_ip < 0 || new_ip as usize >= self.program.len() {
+                        return Err(RuntimeError(format!("invalid jump target {}", new_ip)));
+                    }
+                    self.ip = new_ip as u16;
+                    return Ok(false);
+                }
+            }
+            Instruction::Jgt(offset) => {
+                if !self.flags.z && !self.flags.n {
+                    let new_ip = (self.ip as isize).wrapping_add(*offset as isize);
+                    if new_ip < 0 || new_ip as usize >= self.program.len() {
+                        return Err(RuntimeError(format!("invalid jump target {}", new_ip)));
+                    }
+                    self.ip = new_ip as u16;
+                    return Ok(false);
+                }
+            }
+            Instruction::Jeq(offset) => {
+                if self.flags.z {
+                    let new_ip = (self.ip as isize).wrapping_add(*offset as isize);
+                    if new_ip < 0 || new_ip as usize >= self.program.len() {
+                        return Err(RuntimeError(format!("invalid jump target {}", new_ip)));
+                    }
+                    self.ip = new_ip as u16;
+                    return Ok(false);
+                }
+            }
+            Instruction::Not => {
+                let val = self.pop_word()?;
+                let result = if val == 0 { 1 } else { 0 };
+                self.push_word(result)?;
+                self.set_flags(result, false);
+            }
+            Instruction::Halt => return Ok(true),
+        }
+
+        self.ip += 1;
+        Ok(false)
+    }
+
+    // Execute instructions
+    pub fn exec(&mut self) -> RuntimeResult<()> {
+        let mut halt = false;
+        while !halt && (self.ip as usize) < self.program.len() {
+            halt = self.exec_instruction()?;
+        }
+
+        Ok(())
+    }
+
+    pub fn top_word(&self) -> u16 {
+        let sp = self.sp as usize;
+        u16::from_le_bytes([self.memory[sp], self.memory[sp + 1]])
+    }
+
+    fn set_flags(&mut self, result: u16, overflow: bool) {
         self.flags.z = result == 0;
-        self.flags.n = (result & 0x8000_0000) != 0;
+        self.flags.n = (result & 0x8000) != 0;
         self.flags.v = overflow;
     }
 }
