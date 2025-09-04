@@ -1,0 +1,33 @@
+program        = statement*;
+
+statement      = (vardef | expr) line_end+;
+line_end       = ";" | "\n";
+
+vardef         = "var " ident [typedef] "=" expr;
+typedef        = ":" ident;
+
+expr           = equality;
+
+equality       = relational (eq_op relational)*;  
+eq_op          = "==" | "!=";
+
+relational     = additive (rel_op additive)*;     
+rel_op         = ">" | "<" | ">=" | "<=";
+
+additive       = multiplicative (add_op multiplicative)*;
+add_op         = "+" | "-";
+
+multiplicative = atom (mult_op atom)*;
+mult_op        = "*" | "/";
+
+atom           = int | ident | bool | unary | "(" expr ")";
+unary          = (add_op | "!") atom;
+
+bool           = "true" | "false";
+
+ident          = (alpha | "_") (alphanum | "_")*;
+int            = digit+;
+
+alphanum       = digit | alpha;
+digit          = "0".."9";
+alpha          = ("a".."z" | "A".."Z");
