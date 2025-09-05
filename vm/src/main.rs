@@ -1,121 +1,70 @@
-use std::{
-    fs::File,
-    io::{self, Read, Write, stdin, stdout},
-    process,
-};
-
-mod codegen;
-mod error;
-mod lexer;
-mod parser;
-mod type_check;
-
-use clap::{ArgGroup, CommandFactory, Parser};
-use lexer::Lexer;
+use clap::Parser;
+use std::{fs, process};
 
 use crate::{
-    codegen::{gen_asm, gen_bin, gen_instrs},
-    type_check::check_types,
+    debug::Debugger,
+    vm::{Vm, parse_program},
 };
+mod debug;
+mod error;
+mod vm;
 
 #[derive(Parser, Debug)]
-#[command(name = "mango")]
-#[command(group(
-    ArgGroup::new("source")
-        .required(true)
-        .args(["input", "repl"]),
-))]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about)]
 struct Cli {
-    #[arg(value_name = "FILE")]
-    input: Option<String>,
+    filename: String,
 
-    #[arg(short, long)]
-    repl: bool,
+    // Show only top of stack
+    #[arg(short = 't', long)]
+    show_top: bool,
 
-    /// Emit assembly instead of binary
+    // Show whole stack
     #[arg(short = 's', long)]
-    asm: bool,
+    show_stack: bool,
 
-    #[arg(short, long, value_name = "OUTPUT")]
-    output: Option<String>,
+    // Debugger
+    #[arg(short = 'd', long)]
+    debugger: bool,
 }
 
-fn run_repl(emit_asm: bool) -> io::Result<()> {
-    loop {
-        let mut input = String::new();
-        print!("> ");
-        stdout().flush()?;
-        stdin().read_line(&mut input)?;
-        let input = input.trim();
+fn main() {
+    let cli = Cli::parse();
+    let code = fs::read_to_string(&cli.filename).unwrap_or_else(|err| {
+        eprintln!("failed to read {}: {}", cli.filename, err);
+        process::exit(1);
+    });
 
-        if input == "exit" {
-            break;
-        }
-
-        match parser::parse(&mut Lexer::new(input).peekable())
-            .and_then(|ast| check_types(ast))
-            .and_then(|(ast, type_env, var_env)| gen_instrs(ast, type_env, var_env))
-        {
-            Ok(instrs) => {
-                if emit_asm {
-                    println!("{}", gen_asm(instrs));
-                } else {
-                    let bin = gen_bin(instrs);
-                    println!("{:02X?}", bin);
-                }
-            }
-            Err(err) => eprintln!("Error: {}", err),
-        }
-    }
-    Ok(())
-}
-
-fn compile_file(filename: &str, output_path: &str, emit_asm: bool) -> io::Result<()> {
-    let mut code_file = File::open(filename)?;
-    let mut code = String::new();
-    code_file.read_to_string(&mut code)?;
-
-    match parser::parse(&mut Lexer::new(&code).peekable())
-        .and_then(|ast| check_types(ast))
-        .and_then(|(ast, type_env, var_env)| gen_instrs(ast, type_env, var_env))
-    {
-        Ok(instrs) => {
-            let mut output = File::create(output_path)?;
-            if emit_asm {
-                output.write_all(gen_asm(instrs).as_bytes())?;
-            } else {
-                output.write_all(&gen_bin(instrs))?;
-            }
-        }
+    let program = match parse_program(&code) {
+        Ok(p) => p,
         Err(err) => {
-            eprintln!("Compilation failed: {}", err);
+            eprintln!("{}", err);
+            process::exit(1);
+        }
+    };
+
+    let mut vm = Vm::new(&program).expect("memory overflow - too many local variables");
+    if cli.debugger {
+        println!("Entering debugger");
+        if let Err(err) = Debugger::new(vm).debug() {
+            println!("{}", err)
+        };
+
+        process::exit(0);
+    } else {
+        if let Err(err) = vm.exec() {
+            eprintln!("{}", err);
             process::exit(1);
         }
     }
+    if cli.show_top {
+        let raw = vm.top_word();
+        println!("top of stack: as u16 = {}, as i16 = {}", raw, raw as i16);
+    }
 
-    Ok(())
-}
-
-fn main() -> io::Result<()> {
-    let cli = Cli::parse();
-
-    let emit_asm = cli.asm;
-    let output = cli.output.unwrap_or_else(|| {
-        if emit_asm {
-            "out.masm".to_string()
-        } else {
-            "out.mbin".to_string()
+    if cli.show_stack {
+        println!("stack top = {}", vm.top_word());
+        for (i, raw) in vm.memory.iter().enumerate() {
+            println!("stack[{}]: as u16 = {}, as i16 = {}", i, raw, *raw as i16);
         }
-    });
-
-    if cli.repl {
-        run_repl(emit_asm)
-    } else if let Some(filename) = cli.input {
-        compile_file(&filename, &output, emit_asm)
-    } else {
-        Cli::command().print_help().unwrap();
-        println!();
-        process::exit(1);
     }
 }
