@@ -3,7 +3,7 @@
 ### **0x0_ — Stack & Control**
 | Opcode | Mnemonic | Operands | Notes            |
 |--------|----------|----------|------------------|
-| 0x01   | PUSH32   | imm32    | push 32-bit value|
+| 0x01   | PUSH16   | imm16    | push 16-bit value|
 | 0x0F   | HALT     | —        | stop execution   |
 
 ---
