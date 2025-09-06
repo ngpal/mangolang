@@ -7,5 +7,6 @@ impl Display for RuntimeError {
         write!(f, "RuntimeError: {}", self.0)
     }
 }
+
 impl Error for RuntimeError {}
 pub type RuntimeResult<T> = Result<T, RuntimeError>;

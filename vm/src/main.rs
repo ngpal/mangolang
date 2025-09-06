@@ -1,10 +1,7 @@
 use clap::Parser;
 use std::{fs, process};
 
-use crate::{
-    debug::Debugger,
-    vm::{Vm, parse_program},
-};
+use crate::{debug::Debugger, vm::Vm};
 mod debug;
 mod error;
 mod vm;
@@ -29,20 +26,17 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
-    let code = fs::read_to_string(&cli.filename).unwrap_or_else(|err| {
+    let program = fs::read(&cli.filename).unwrap_or_else(|err| {
         eprintln!("failed to read {}: {}", cli.filename, err);
         process::exit(1);
     });
 
-    let program = match parse_program(&code) {
-        Ok(p) => p,
-        Err(err) => {
-            eprintln!("{}", err);
-            process::exit(1);
-        }
-    };
+    let mut vm = Vm::new();
+    vm.load(program).unwrap_or_else(|err| {
+        eprintln!("failed to load program: {}", err);
+        process::exit(1);
+    });
 
-    let mut vm = Vm::new(&program).expect("memory overflow - too many local variables");
     if cli.debugger {
         println!("Entering debugger");
         if let Err(err) = Debugger::new(vm).debug() {
