@@ -1,10 +1,12 @@
-program        = statement*;
+program        = (statement line_end)*;
 
-statement      = (vardef | expr) line_end+;
+statement      = vardef | assignment | expr;
 line_end       = ";" | "\n";
 
 vardef         = "var " ident [typedef] "=" expr;
 typedef        = ":" ident;
+
+assignment     = ident "=" expr;
 
 expr           = equality;
 
@@ -21,7 +23,7 @@ multiplicative = atom (mult_op atom)*;
 mult_op        = "*" | "/";
 
 atom           = int | ident | bool | unary | "(" expr ")";
-unary          = (add_op | "!") atom;
+unary          = (add_op | "!") unary | atom;
 
 bool           = "true" | "false";
 
