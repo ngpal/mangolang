@@ -22,6 +22,10 @@ pub enum Instr {
     Neg = 0x34,
     Icmp = 0x35,
     Not = 0x40,
+    And = 0x41,
+    Or = 0x42,
+    Xor = 0x43,
+    Shft = 0x44,
 }
 
 impl Instr {
@@ -42,6 +46,10 @@ impl Instr {
             0x34 => Some(Instr::Neg),
             0x35 => Some(Instr::Icmp),
             0x40 => Some(Instr::Not),
+            0x41 => Some(Instr::And),
+            0x42 => Some(Instr::Or),
+            0x43 => Some(Instr::Xor),
+            0x44 => Some(Instr::Shft),
             _ => None,
         }
     }
@@ -189,8 +197,15 @@ impl Vm {
                 self.ip += 2;
             }
             Instr::Halt => return Ok(true),
-
-            Instr::Iadd | Instr::Isub | Instr::Imul | Instr::Idiv | Instr::Icmp => {
+            Instr::Iadd
+            | Instr::Isub
+            | Instr::Imul
+            | Instr::Idiv
+            | Instr::Icmp
+            | Instr::And
+            | Instr::Or
+            | Instr::Xor
+            | Instr::Shft => {
                 let right = self.pop_word()?;
                 let left = self.pop_word()?;
 
@@ -205,6 +220,31 @@ impl Vm {
                         let (res, overflow) = (left as i16).overflowing_div(right as i16);
                         (res as u16, overflow)
                     }
+                    Instr::And => (left & right, false),
+                    Instr::Or => (left | right, false),
+                    Instr::Xor => (left ^ right, false),
+                    Instr::Shft => {
+                        let sh = right as i16;
+
+                        let amt = sh.abs() as usize;
+                        let amt = if amt >= 16 { 15 } else { amt };
+
+                        let word_bits = 16;
+                        let res = if sh >= 0 {
+                            if amt as u32 >= word_bits {
+                                0
+                            } else {
+                                left << (amt as u32)
+                            }
+                        } else {
+                            if (-sh) as u32 >= word_bits {
+                                0
+                            } else {
+                                left >> ((-sh) as u32)
+                            }
+                        };
+                        (res, false)
+                    }
                     _ => unreachable!(),
                 };
 
@@ -218,7 +258,6 @@ impl Vm {
                 let operand = self.pop_word()?;
                 self.push_word((!operand).wrapping_add(1))?
             }
-
             Instr::Store8 => {
                 let offset = self.memory[self.ip as usize + 1] as u16;
                 self.ip += 1;
@@ -234,17 +273,13 @@ impl Vm {
                 let addr = self.fp - offset * 2;
                 self.push_word(self.read_word(addr))?;
             }
-
             Instr::Jmp8 => return self.jump_rel(true),
             Instr::Jlt8 => return self.jump_rel(self.flags.n),
             Instr::Jgt8 => return self.jump_rel(!self.flags.z && !self.flags.n),
             Instr::Jeq8 => return self.jump_rel(self.flags.z),
-
             Instr::Not => {
                 let val = self.pop_word()?;
-                let result = if val == 0 { 1 } else { 0 };
-                self.push_word(result)?;
-                self.set_flags(result, false);
+                self.push_word(!val)?;
             }
         }
 

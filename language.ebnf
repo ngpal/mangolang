@@ -15,6 +15,9 @@ if_expr        = "if" equality "{" program "}"
 				["else" "{" program "}"]
 			   | equality
 
+logic          = equality (logic_op equality)*;
+logic_op       = "&&" | "||"
+
 equality       = relational (eq_op relational)*;  
 eq_op          = "==" | "!=";
 

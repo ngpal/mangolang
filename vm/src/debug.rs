@@ -64,6 +64,10 @@ impl Debugger {
             Some(Instr::Icmp) => "ICMP".into(),
             Some(Instr::Not) => "NOT".into(),
             Some(Instr::Halt) => "HALT".into(),
+            Some(Instr::And) => "AND".into(),
+            Some(Instr::Or) => "OR".into(),
+            Some(Instr::Xor) => "XOR".into(),
+            Some(Instr::Shft) => "SHFT".into(),
             None => format!("DB 0x{:02X}", op),
         }
     }

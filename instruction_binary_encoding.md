@@ -38,7 +38,11 @@
 
 ---
 
-### **0x4_ — Logical Ops**
-| Opcode | Mnemonic | Operands | Notes        |
-|--------|----------|----------|--------------|
-| 0x40   | NOT      | —        | bitwise not  |
+### **0x4_ - Bitwise Ops**
+| Opcode | Mnemonic | Operands | Notes              |
+|--------|----------|----------|--------------------|
+| 0x40   | NOT      | —        | bitwise not        |
+| 0x41   | AND      | —        | bitwise and        |
+| 0x42   | OR       | —        | bitwise or         |
+| 0x43   | XOR      | —        | bitwise xor        |
+| 0x44   | SHFT     | —        | bitwise shift      |
