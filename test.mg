@@ -2,7 +2,8 @@ var x: int = 5;
 var y = 10;
 var z = 15;
 
-if x > y {
+// comments dont do much yay
+if x > y { // i can comment here too yk
 	z = x + y;
 } else if y == 10 {
 	z = y * 2;
