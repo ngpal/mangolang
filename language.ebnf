@@ -3,12 +3,17 @@ program        = (statement line_end)*;
 statement      = vardef | assignment | expr;
 line_end       = ";" | "\n";
 
-vardef         = "var " ident [typedef] "=" expr;
+vardef         = "var" ident [typedef] "=" expr;
 typedef        = ":" ident;
 
 assignment     = ident "=" expr;
 
-expr           = equality;
+expr           = if_expr;
+
+if_expr        = "if" equality "{" program "}"
+				("else" "if" equality "{" program "}")*
+				["else" "{" program "}"]
+			   | equality
 
 equality       = relational (eq_op relational)*;  
 eq_op          = "==" | "!=";
