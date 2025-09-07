@@ -1,3 +1,4 @@
-var a = 2 + 2
-a = 256
-a / 4
+var a = 9
+var b = -2
+
+(a < b) == false
