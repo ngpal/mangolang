@@ -10,13 +10,16 @@ assignment     = ident "=" expr;
 
 expr           = if_expr;
 
-if_expr        = "if" equality "{" program "}"
-				("else" "if" equality "{" program "}")*
-				["else" "{" program "}"]
-			   | equality
+if_expr        = "if" logic "{" program "}"
+                ("else" "if" logic "{" program "}")*
+                ["else" "{" program "}"]
+               | logic;
 
-logic          = equality (logic_op equality)*;
-logic_op       = "&&" | "||"
+logic          = bitwise (logic_op bitwise)*;
+logic_op       = "&&" | "||";
+
+bitwise        = equality (bitwise_op equality)*;
+bitwise_op     = "&" | "|" | "^";
 
 equality       = relational (eq_op relational)*;  
 eq_op          = "==" | "!=";
@@ -27,11 +30,15 @@ rel_op         = ">" | "<" | ">=" | "<=";
 additive       = multiplicative (add_op multiplicative)*;
 add_op         = "+" | "-";
 
-multiplicative = atom (mult_op atom)*;
+multiplicative = shift (mult_op shift)*;
 mult_op        = "*" | "/";
 
-atom           = int | ident | bool | unary | "(" expr ")";
-unary          = (add_op | "!") unary | atom;
+shift          = unary (shift_op unary)*;
+shift_op       = "<<" | ">>";
+
+unary          = (add_op | "!" | "~") unary | atom;
+
+atom           = int | ident | bool | "(" expr ")";
 
 bool           = "true" | "false";
 
