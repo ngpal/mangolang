@@ -7,5 +7,9 @@
 - [x] remove logical from isa (unnecessary)
 - [x] Bitwise & | ^ ~ << >>
 - [x] Logical && ||
+- [ ] basic loop
+- [ ] arrays
+- [ ] type casting
+- [ ] functions
 - [ ] char datatype
 - [ ] writing output (hacky)

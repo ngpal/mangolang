@@ -1,9 +1,9 @@
-var x: int = 5;
-var y = 10;
-var z = 15;
+var x = 0;
 
-if x == 6 && y == 10 {
-	12
-} else {
-	13
+if true {
+	x = 2
+} else if false {
+	x = 3
 }
+
+x

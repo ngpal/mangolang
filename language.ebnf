@@ -1,12 +1,16 @@
 program        = (statement line_end)*;
 
-statement      = vardef | assignment | expr;
+statement      = vardef | assignment | expr | loop_stmt | break_stmt | continue_stmt;
 line_end       = ";" | "\n";
 
 vardef         = "var" ident [typedef] "=" expr;
 typedef        = ":" ident;
 
 assignment     = ident "=" expr;
+
+loop_stmt      = "loop" "{" program "}";
+break_stmt     = "break";
+continue_stmt  = "continue";
 
 expr           = if_expr;
 
