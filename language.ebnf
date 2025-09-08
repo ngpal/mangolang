@@ -1,6 +1,6 @@
 program        = (statement line_end)*;
 
-statement      = vardef | assignment | expr | loop_stmt | break_stmt | continue_stmt;
+statement      = vardef | assignment | expr  | break_stmt | continue_stmt;
 line_end       = ";" | "\n";
 
 vardef         = "var" ident [typedef] "=" expr;
@@ -8,16 +8,10 @@ typedef        = ":" ident;
 
 assignment     = ident "=" expr;
 
-loop_stmt      = "loop" "{" program "}";
 break_stmt     = "break";
 continue_stmt  = "continue";
 
-expr           = if_expr;
-
-if_expr        = "if" logic "{" program "}"
-                ("else" "if" logic "{" program "}")*
-                ["else" "{" program "}"]
-               | logic;
+expr           = logic_op;
 
 logic          = bitwise (logic_op bitwise)*;
 logic_op       = "&&" | "||";
@@ -42,7 +36,15 @@ shift_op       = "<<" | ">>";
 
 unary          = (add_op | "!" | "~") unary | atom;
 
-atom           = int | ident | bool | "(" expr ")";
+atom           = int | ident | bool | "(" expr ")" | if_expr | loop_expr;
+
+if_expr        = "if" logic "{" program "}"
+                ("else" "if" logic "{" program "}")*
+                ["else" "{" program "}"]
+               | logic;
+
+loop_expr      = "loop" "{" program "}"
+
 
 bool           = "true" | "false";
 
