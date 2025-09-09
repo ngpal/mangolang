@@ -59,6 +59,33 @@ impl Instr {
             _ => None,
         }
     }
+
+    pub fn byte_len(&self) -> usize {
+        match self {
+            Instr::Push16 => 3,
+            Instr::Load8 => 2,
+            Instr::Store8 => 2,
+            Instr::Jmp8 => 2,
+            Instr::Jlt8 => 2,
+            Instr::Jgt8 => 2,
+            Instr::Jeq8 => 2,
+            Instr::Mov => 2,
+            Instr::Pushr => 2,
+            Instr::Popr => 2,
+            Instr::Iadd
+            | Instr::Isub
+            | Instr::Imul
+            | Instr::Idiv
+            | Instr::Neg
+            | Instr::Not
+            | Instr::Icmp
+            | Instr::Halt => 1,
+            Instr::And => 1,
+            Instr::Or => 1,
+            Instr::Shft => 1,
+            Instr::Xor => 1,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -68,10 +95,13 @@ pub struct Flags {
     pub v: bool,
 }
 
-#[derive(Default)]
 pub struct Registers([u16; 6]); // 4 general purpose, sp, fp
 
 impl Registers {
+    pub fn new() -> Self {
+        Self([0, 0, 0, 0, 0xFFFE, 0xFFFE]) // Stack and fram pointers are at the bottom
+    }
+
     // general purpose
     pub fn get_reg(&self, id: u8) -> RuntimeResult<u16> {
         if id > 3 {
@@ -124,7 +154,7 @@ impl Vm {
         Self {
             memory: [0; MEM_SIZE],
             flags: Flags::default(),
-            registers: Registers::default(),
+            registers: Registers::new(),
             ip: 0,
             program_end: 0,
         }
@@ -152,10 +182,19 @@ impl Vm {
 
     fn allocate_locals(&mut self) -> RuntimeResult<()> {
         let mut max_local = 0;
-        for ip in 0..MAX_PROGRAM_SIZE {
+        let mut ip = 0;
+
+        while ip < self.program_end {
             if self.memory[ip] == Instr::Store8 as u8 {
                 max_local = cmp::max(max_local, self.memory[ip + 1]);
             }
+
+            ip += Instr::from_u8(self.memory[ip])
+                .ok_or(RuntimeError(format!(
+                    "formatting issue on byte {} in the instructions",
+                    ip
+                )))?
+                .byte_len()
         }
 
         let space_needed = 2 * (max_local as usize + 1);
