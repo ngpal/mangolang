@@ -1,5 +1,8 @@
 # Instruction Set (Current)
 
+- 4 general purpose registers - r0 to r3
+- 2 register IDs may take up 1 byte low 4 bits one reg, high 4 bits the second
+
 ### **0x0_ — Stack & Control**
 | Opcode | Mnemonic | Operands | Notes            |
 |--------|----------|----------|------------------|
@@ -46,3 +49,12 @@
 | 0x42   | OR       | —        | bitwise or         |
 | 0x43   | XOR      | —        | bitwise xor        |
 | 0x44   | SHFT     | —        | bitwise shift      |
+
+---
+
+### **0x5_ - Register Ops**
+| Opcode | Mnemonic | Operands     | Notes                          |
+|--------|----------|--------------|--------------------------------|
+| 0x50   | MOV      | rd, rs       | rd = rs                        |
+| 0x51   | PUSHR    | rs           | push contents of rs onto stack |
+| 0x52   | POPR     | rd           | pop stack top into rd          |

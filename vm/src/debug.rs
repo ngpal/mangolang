@@ -68,6 +68,21 @@ impl Debugger {
             Some(Instr::Or) => "OR".into(),
             Some(Instr::Xor) => "XOR".into(),
             Some(Instr::Shft) => "SHFT".into(),
+            Some(Instr::Mov) => {
+                let inp = vm.memory.get(ip + 1).copied().unwrap_or(0);
+                let rd = inp >> 4;
+                let rs = inp & 0xf;
+
+                format!("MOV r{} r{}", rd, rs)
+            }
+            Some(Instr::Pushr) => {
+                let rs = vm.memory.get(ip + 1).copied().unwrap_or(0);
+                format!("PUSHR r{}", rs)
+            }
+            Some(Instr::Popr) => {
+                let rd = vm.memory.get(ip + 1).copied().unwrap_or(0);
+                format!("POPR r{}", rd)
+            }
             None => format!("DB 0x{:02X}", op),
         }
     }
@@ -75,17 +90,23 @@ impl Debugger {
     pub fn debug(&mut self) -> RuntimeResult<()> {
         loop {
             let next = Self::disasm_at(&self.vm);
-            let top = if self.vm.sp < 0xFFFE {
+            let top = if self.vm.registers.get_sp() < 0xFFFE {
                 Some(self.vm.top_word())
             } else {
                 None
             };
 
+            let gprs: Result<Vec<String>, _> = (0..4)
+                .map(|i| Ok(format!("r{}={:04X}", i, self.vm.registers.get_reg(i)?)))
+                .collect();
+            let gprs = gprs?;
+
             println!(
-                "IP: 0x{:04X} | SP: 0x{:04X} | FP: 0x{:04X} | Flags [Z:{} N:{} V:{}] | Top: {:?} | Next: {}",
+                "IP: 0x{:04X} | SP: 0x{:04X} | FP: 0x{:04X} | {} | Flags [Z:{} N:{} V:{}] | Top: {:?} | Next: {}",
                 self.vm.ip,
-                self.vm.sp,
-                self.vm.fp,
+                self.vm.registers.get_sp(),
+                self.vm.registers.get_fp(),
+                gprs.join(" "),
                 self.vm.flags.z,
                 self.vm.flags.n,
                 self.vm.flags.v,
@@ -117,7 +138,7 @@ impl Debugger {
                 }
                 "stack" | "stk" => {
                     println!("Stack snapshot (top → bottom):");
-                    let mut sp = self.vm.sp as usize;
+                    let mut sp = self.vm.registers.get_sp() as usize;
                     while sp + 1 < MEM_SIZE && sp < 0xFFFE {
                         let val = u16::from_le_bytes([self.vm.memory[sp], self.vm.memory[sp + 1]]);
                         println!("  [0x{:04X}] = {}", sp, val);
@@ -140,10 +161,20 @@ impl Debugger {
                     }
                     println!();
                 }
+                "regs" | "r" => {
+                    println!("Registers:");
+                    for i in 0..4 {
+                        println!("  r{} = 0x{:04X}", i, self.vm.registers.get_reg(i).unwrap());
+                    }
+                    println!("  SP = 0x{:04X}", self.vm.registers.get_sp());
+                    println!("  FP = 0x{:04X}", self.vm.registers.get_fp());
+                    println!("  IP = 0x{:04X}", self.vm.ip);
+                }
                 "help" | "h" => {
                     println!("commands:");
                     println!("  step | s      - execute next instruction");
                     println!("  continue | c  - run until halt");
+                    println!("  regs | r      - show registers");
                     println!("  stack | stk   - show stack contents");
                     println!("  flags | f     - show flags");
                     println!("  ip            - show instruction pointer");

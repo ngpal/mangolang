@@ -26,6 +26,9 @@ pub enum Instr {
     Or = 0x42,
     Xor = 0x43,
     Shft = 0x44,
+    Mov = 0x50,
+    Pushr = 0x51,
+    Popr = 0x52,
 }
 
 impl Instr {
@@ -50,6 +53,9 @@ impl Instr {
             0x42 => Some(Instr::Or),
             0x43 => Some(Instr::Xor),
             0x44 => Some(Instr::Shft),
+            0x50 => Some(Instr::Mov),
+            0x51 => Some(Instr::Pushr),
+            0x52 => Some(Instr::Popr),
             _ => None,
         }
     }
@@ -62,12 +68,58 @@ pub struct Flags {
     pub v: bool,
 }
 
+#[derive(Default)]
+pub struct Registers([u16; 6]); // 4 general purpose, sp, fp
+
+impl Registers {
+    pub fn get_gpr(&self, idx: usize) -> u16 {
+        self.0[idx]
+    }
+
+    // general purpose
+    pub fn get_reg(&self, id: u8) -> RuntimeResult<u16> {
+        if id > 3 {
+            return Err(RuntimeError(format!("invalid general register r{}", id)));
+        }
+        Ok(self.0[id as usize])
+    }
+
+    pub fn set_reg(&mut self, id: u8, val: u16) -> RuntimeResult<()> {
+        if id > 3 {
+            return Err(RuntimeError(format!("invalid general register r{}", id)));
+        }
+        self.0[id as usize] = val;
+        Ok(())
+    }
+
+    // stack pointer
+    pub fn get_sp(&self) -> u16 {
+        self.0[4]
+    }
+
+    pub fn inc_sp(&mut self, amt: u16) {
+        self.0[4] = self.0[4].wrapping_add(amt);
+    }
+
+    pub fn dec_sp(&mut self, amt: u16) {
+        self.0[4] = self.0[4].wrapping_sub(amt);
+    }
+
+    // frame pointer
+    pub fn get_fp(&self) -> u16 {
+        self.0[5]
+    }
+
+    pub fn set_fp(&mut self, val: u16) {
+        self.0[5] = val;
+    }
+}
+
 pub struct Vm {
     pub memory: [u8; MEM_SIZE],
     pub flags: Flags,
-    pub sp: u16,
+    pub registers: Registers,
     pub ip: u16,
-    pub fp: u16,
     pub program_end: usize,
 }
 
@@ -76,9 +128,8 @@ impl Vm {
         Self {
             memory: [0; MEM_SIZE],
             flags: Flags::default(),
+            registers: Registers::default(),
             ip: 0,
-            fp: 0xFFFE,
-            sp: 0xFFFE,
             program_end: 0,
         }
     }
@@ -112,13 +163,13 @@ impl Vm {
         }
 
         let space_needed = 2 * (max_local as usize + 1);
-        if (self.sp as usize) < space_needed + self.program_end {
+        if (self.registers.get_sp() as usize) < space_needed + self.program_end {
             return Err(RuntimeError(
                 "memory overflow - too many local variables".into(),
             ));
         }
 
-        self.sp -= space_needed as u16;
+        self.registers.dec_sp(space_needed as u16);
         Ok(())
     }
 
@@ -142,26 +193,26 @@ impl Vm {
     }
 
     fn push_word(&mut self, val: u16) -> RuntimeResult<()> {
-        if self.sp < 2 {
+        if self.registers.get_sp() < 2 {
             return Err(RuntimeError("stack overflow".into()));
         }
-        self.sp -= 2;
+        self.registers.dec_sp(2);
         let bytes = val.to_le_bytes(); // little-endian
-        self.memory[self.sp as usize] = bytes[0];
-        self.memory[self.sp as usize + 1] = bytes[1];
+        self.memory[self.registers.get_sp() as usize] = bytes[0];
+        self.memory[self.registers.get_sp() as usize + 1] = bytes[1];
         Ok(())
     }
 
     fn pop_word(&mut self) -> RuntimeResult<u16> {
-        if (self.sp as usize) + 2 > MEM_SIZE {
+        if (self.registers.get_sp() as usize) + 2 > MEM_SIZE {
             return Err(RuntimeError("stack underflow".into()));
         }
         let val = u16::from_le_bytes(
-            self.memory[self.sp as usize..self.sp as usize + 2]
+            self.memory[self.registers.get_sp() as usize..self.registers.get_sp() as usize + 2]
                 .try_into()
                 .unwrap(),
         );
-        self.sp += 2;
+        self.registers.inc_sp(2);
         Ok(val)
     }
 
@@ -262,7 +313,7 @@ impl Vm {
                 let offset = self.memory[self.ip as usize + 1] as u16;
                 self.ip += 1;
 
-                let addr = self.fp - offset * 2;
+                let addr = self.registers.get_fp() - offset * 2;
                 let val = self.pop_word()?;
                 self.write_word(addr, val)?;
             }
@@ -270,7 +321,7 @@ impl Vm {
                 let offset = self.memory[self.ip as usize + 1] as u16;
                 self.ip += 1;
 
-                let addr = self.fp - offset * 2;
+                let addr = self.registers.get_fp() - offset * 2;
                 self.push_word(self.read_word(addr))?;
             }
             Instr::Jmp8 => return self.jump_rel(true),
@@ -280,6 +331,28 @@ impl Vm {
             Instr::Not => {
                 let val = self.pop_word()?;
                 self.push_word(!val)?;
+            }
+            Instr::Mov => {
+                self.ip += 1;
+                let inp = self.memory[self.ip as usize];
+
+                let rd = inp >> 4;
+                let rs = inp & 0xF;
+
+                self.registers.set_reg(rd, self.registers.get_reg(rs)?)?;
+            }
+            Instr::Pushr => {
+                self.ip += 1;
+                let rs = self.memory[self.ip as usize];
+
+                self.push_word(self.registers.get_reg(rs)?)?;
+            }
+            Instr::Popr => {
+                self.ip += 1;
+                let rd = self.memory[self.ip as usize];
+                let word = self.pop_word()?;
+
+                self.registers.set_reg(rd, word)?;
             }
         }
 
@@ -298,7 +371,7 @@ impl Vm {
     }
 
     pub fn top_word(&self) -> u16 {
-        let sp = self.sp as usize;
+        let sp = self.registers.get_sp() as usize;
         u16::from_le_bytes([self.memory[sp], self.memory[sp + 1]])
     }
 
