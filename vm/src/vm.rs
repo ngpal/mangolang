@@ -72,10 +72,6 @@ pub struct Flags {
 pub struct Registers([u16; 6]); // 4 general purpose, sp, fp
 
 impl Registers {
-    pub fn get_gpr(&self, idx: usize) -> u16 {
-        self.0[idx]
-    }
-
     // general purpose
     pub fn get_reg(&self, id: u8) -> RuntimeResult<u16> {
         if id > 3 {
