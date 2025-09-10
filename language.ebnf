@@ -1,56 +1,52 @@
 program        = (statement line_end)*;
 
-statement      = vardef | assignment | expr  | break_stmt | continue_stmt;
+statement      = vardef | assignment | expr | break_stmt | continue_stmt;
 line_end       = ";" | "\n";
 
 vardef         = "var" ident [typedef] "=" expr;
-typedef        = ":" ident;
+typedef        = type;
 
-assignment     = ident "=" expr;
+assignment     = (ident | deref) "=" expr;
 
-break_stmt     = "break";
+break_stmt     = "break" [expr];
 continue_stmt  = "continue";
 
 expr           = logic_op;
 
-logic          = bitwise (logic_op bitwise)*;
-logic_op       = "&&" | "||";
+logic_op       = bitwise (("&&" | "||") bitwise)*;
 
-bitwise        = equality (bitwise_op equality)*;
-bitwise_op     = "&" | "|" | "^";
+bitwise        = equality (("&" | "|" | "^") equality)*;
 
-equality       = relational (eq_op relational)*;  
-eq_op          = "==" | "!=";
+equality       = relational (("==" | "!=") relational)*;
 
-relational     = additive (rel_op additive)*;     
-rel_op         = ">" | "<" | ">=" | "<=";
+relational     = additive ((">" | "<" | ">=" | "<=") additive)*;
 
-additive       = multiplicative (add_op multiplicative)*;
-add_op         = "+" | "-";
+additive       = multiplicative (("+" | "-") multiplicative)*;
 
-multiplicative = shift (mult_op shift)*;
-mult_op        = "*" | "/";
+multiplicative = shift (("*" | "/" | "%") shift)*;
 
-shift          = unary (shift_op unary)*;
-shift_op       = "<<" | ">>";
+shift          = unary (("<<" | ">>") unary)*;
 
-unary          = (add_op | "!" | "~") unary | atom;
+unary          = ("+" | "-" | "!" | "~" | "*") unar | atom;
 
-atom           = int | ident | bool | "(" expr ")" | if_expr | loop_expr;
+atom           = int | bool | ident | "(" expr ")" | if_expr | loop_expr;
 
-if_expr        = "if" logic "{" program "}"
-                ("else" "if" logic "{" program "}")*
-                ["else" "{" program "}"]
-               | logic;
+if_expr        = "if" expr "{" program "}"
+               ("else" "if" expr "{" program "}")*
+               ["else" "{" program "}"];
 
-loop_expr      = "loop" "{" program "}"
+loop_expr      = "loop" "{" program "}";
 
+type           = "int" | "bool" | "unit" | ("ref" type);
+
+ref            = "@" ref | unary;
+
+ident          = (alpha | "_") (alphanum | "_")*;
+
+int            = digit+;
 
 bool           = "true" | "false";
 
-ident          = (alpha | "_") (alphanum | "_")*;
-int            = digit+;
-
 alphanum       = digit | alpha;
 digit          = "0".."9";
-alpha          = ("a".."z" | "A".."Z");
+alpha          = "a".."z" | "A".."Z";
