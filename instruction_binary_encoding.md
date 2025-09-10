@@ -1,4 +1,4 @@
-# Instruction Set (Current)
+Instruction Set (Current)
 
 - 4 general purpose registers - r0 to r3
 - 2 register IDs may take up 1 byte low 4 bits one reg, high 4 bits the second
@@ -8,16 +8,18 @@
 | Opcode | Mnemonic | Operands | Notes             |
 | ------ | -------- | -------- | ----------------- |
 | 0x01   | PUSH16   | imm16    | push 16-bit value |
-| 0x0F   | HALT     | —        | stop execution    |
+| 0x0F   | HALT     | -        | stop execution    |
 
 ---
 
 ### **0x1\_ — Memory**
 
-| Opcode | Mnemonic | Operands | Notes            |
-| ------ | -------- | -------- | ---------------- |
-| 0x10   | LOAD8    | addr8    | load from memory |
-| 0x11   | STORE8   | addr8    | store to memory  |
+| Opcode | Mnemonic | Operands | Notes                                            |
+| ------ | -------- | -------- | ------------------------------------------------ |
+| 0x10   | LOAD8    | addr8    | load from memory                                 |
+| 0x11   | STORE8   | addr8    | store to memory                                  |
+| 0x12   | LOADP    | -        | pops addr and pushes mem\[addr] to stack         |
+| 0x13   | STOREP   | -        | pops addr and val from stack, stores val at addr |
 
 ---
 
@@ -36,12 +38,12 @@
 
 | Opcode | Mnemonic | Operands | Notes                  |
 | ------ | -------- | -------- | ---------------------- |
-| 0x30   | ADD      | —        | integer addition       |
-| 0x31   | SUB      | —        | integer subtraction    |
-| 0x32   | MUL      | —        | integer multiplication |
-| 0x33   | DIV      | —        | integer division       |
-| 0x34   | NEG      | —        | negate integer         |
-| 0x35   | CMP      | —        | compare two ints       |
+| 0x30   | ADD      | -        | integer addition       |
+| 0x31   | SUB      | -        | integer subtraction    |
+| 0x32   | MUL      | -        | integer multiplication |
+| 0x33   | DIV      | -        | integer division       |
+| 0x34   | NEG      | -        | negate integer         |
+| 0x35   | CMP      | -        | compare two ints       |
 
 ---
 
@@ -49,11 +51,11 @@
 
 | Opcode | Mnemonic | Operands | Notes         |
 | ------ | -------- | -------- | ------------- |
-| 0x40   | NOT      | —        | bitwise not   |
-| 0x41   | AND      | —        | bitwise and   |
-| 0x42   | OR       | —        | bitwise or    |
-| 0x43   | XOR      | —        | bitwise xor   |
-| 0x44   | SHFT     | —        | bitwise shift |
+| 0x40   | NOT      | -        | bitwise not   |
+| 0x41   | AND      | -        | bitwise and   |
+| 0x42   | OR       | -        | bitwise or    |
+| 0x43   | XOR      | -        | bitwise xor   |
+| 0x44   | SHFT     | -        | bitwise shift |
 
 ---
 

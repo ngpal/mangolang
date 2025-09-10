@@ -33,8 +33,8 @@
       - parser guarantees its a deref in the first place (parse_reassign is only triggered with ident or *)
       - type checker guarantees deref is valid, and only valid derefs are of ref types, and only valid ref types are identifiers (also guaranteed by the parser and type checker)
 
-  - [ ] grammar
-  - [ ] isa
+  - [x] grammar
+  - [x] isa
   - [ ] codegen
   - [ ] vm
 
