@@ -16,6 +16,28 @@
 
 # 10-09-2025
 - [x] modulo operator
+
+- [ ] pointers
+  - @a to get pointer *a to deref
+  - 16 bit, obviously
+  - new instuctions
+    - LOADP - pops address from stack and pushes value from that address
+    - STOREP - pops value then address from stack, pushes value into the address
+  - [x] lexer
+  - [x] parser
+  - [x] type checker
+
+# 11-09-2025
+  - [x] symantic analysis
+    - How do we know if p in `*p = a` is a valid derefence?
+      - parser guarantees its a deref in the first place (parse_reassign is only triggered with ident or *)
+      - type checker guarantees deref is valid, and only valid derefs are of ref types, and only valid ref types are identifiers (also guaranteed by the parser and type checker)
+
+  - [ ] grammar
+  - [ ] isa
+  - [ ] codegen
+  - [ ] vm
+
 - [ ] writing output (hacky)
   - I'm going to use a disp keyword followed by an expression which will write that information ("magically" converts ints and bools) into video memory
   - new instructions
