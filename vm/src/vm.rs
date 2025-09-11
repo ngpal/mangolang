@@ -1,98 +1,19 @@
 use std::cmp;
 
-use crate::error::{RuntimeError, RuntimeResult};
+use crate::{
+    error::{RuntimeError, RuntimeResult},
+    instr::Instr,
+};
 
 pub const MEM_SIZE: usize = 0x10000;
 const MAX_PROGRAM_SIZE: usize = 32 * 1024; // 32KB
 
-#[repr(u8)]
-pub enum Instr {
-    Push16 = 0x01,
-    Halt = 0x0F,
-    Load8 = 0x10,
-    Store8 = 0x11,
-    Loadp = 0x12,
-    Storep = 0x13,
-    Jmp8 = 0x20,
-    Jlt8 = 0x21,
-    Jgt8 = 0x22,
-    Jeq8 = 0x23,
-    Iadd = 0x30,
-    Isub = 0x31,
-    Imul = 0x32,
-    Idiv = 0x33,
-    Neg = 0x34,
-    Icmp = 0x35,
-    Not = 0x40,
-    And = 0x41,
-    Or = 0x42,
-    Xor = 0x43,
-    Shft = 0x44,
-    Mov = 0x50,
-    Pushr = 0x51,
-    Popr = 0x52,
-}
-
-impl Instr {
-    pub fn from_u8(byte: u8) -> Option<Self> {
-        match byte {
-            0x01 => Some(Instr::Push16),
-            0x0F => Some(Instr::Halt),
-            0x10 => Some(Instr::Load8),
-            0x11 => Some(Instr::Store8),
-            0x12 => Some(Instr::Loadp),
-            0x13 => Some(Instr::Storep),
-            0x20 => Some(Instr::Jmp8),
-            0x21 => Some(Instr::Jlt8),
-            0x22 => Some(Instr::Jgt8),
-            0x23 => Some(Instr::Jeq8),
-            0x30 => Some(Instr::Iadd),
-            0x31 => Some(Instr::Isub),
-            0x32 => Some(Instr::Imul),
-            0x33 => Some(Instr::Idiv),
-            0x34 => Some(Instr::Neg),
-            0x35 => Some(Instr::Icmp),
-            0x40 => Some(Instr::Not),
-            0x41 => Some(Instr::And),
-            0x42 => Some(Instr::Or),
-            0x43 => Some(Instr::Xor),
-            0x44 => Some(Instr::Shft),
-            0x50 => Some(Instr::Mov),
-            0x51 => Some(Instr::Pushr),
-            0x52 => Some(Instr::Popr),
-            _ => None,
-        }
-    }
-
-    pub fn byte_len(&self) -> usize {
-        match self {
-            Instr::Push16 => 3,
-            Instr::Load8 => 2,
-            Instr::Store8 => 2,
-            Instr::Jmp8 => 2,
-            Instr::Jlt8 => 2,
-            Instr::Jgt8 => 2,
-            Instr::Jeq8 => 2,
-            Instr::Mov => 2,
-            Instr::Pushr => 2,
-            Instr::Popr => 2,
-            Instr::Iadd
-            | Instr::Isub
-            | Instr::Imul
-            | Instr::Idiv
-            | Instr::Neg
-            | Instr::Not
-            | Instr::Icmp
-            | Instr::Halt => 1,
-            Instr::And => 1,
-            Instr::Or => 1,
-            Instr::Shft => 1,
-            Instr::Xor => 1,
-            Instr::Loadp => 1,
-            Instr::Storep => 1,
-        }
-    }
-}
+pub const VIDEO_WIDTH: usize = 40;
+pub const VIDEO_HEIGHT: usize = 12;
+pub const VIDEO_BASE: usize = 0x8000;
+pub const VIDEO_SIZE: usize = VIDEO_WIDTH * VIDEO_HEIGHT;
+pub const CURSOR_ADDR: usize = VIDEO_BASE + VIDEO_SIZE;
+pub const INFO_HEIGHT: usize = 5;
 
 #[derive(Default)]
 pub struct Flags {
@@ -246,10 +167,9 @@ impl Vm {
         if self.registers.get_sp() < 2 {
             return Err(RuntimeError("stack overflow".into()));
         }
+
+        self.write_word(self.registers.get_sp(), val)?;
         self.registers.dec_sp(2);
-        let bytes = val.to_le_bytes(); // little-endian
-        self.memory[self.registers.get_sp() as usize] = bytes[0];
-        self.memory[self.registers.get_sp() as usize + 1] = bytes[1];
         Ok(())
     }
 
@@ -257,19 +177,32 @@ impl Vm {
         if (self.registers.get_sp() as usize) + 2 > MEM_SIZE {
             return Err(RuntimeError("stack underflow".into()));
         }
-        let val = u16::from_le_bytes(
-            self.memory[self.registers.get_sp() as usize..self.registers.get_sp() as usize + 2]
-                .try_into()
-                .unwrap(),
-        );
+
         self.registers.inc_sp(2);
+        let val = self.read_word(self.registers.get_sp());
         Ok(val)
     }
 
+    fn read_byte(&self, addr: u16) -> u8 {
+        self.memory[addr as usize]
+    }
+
+    fn fetch_byte(&mut self) -> u8 {
+        let ret = self.read_byte(self.ip);
+        self.ip += 1;
+        ret
+    }
+
+    fn fetch_word(&mut self) -> u16 {
+        let ret = self.read_word(self.ip);
+        self.ip += 2;
+        ret
+    }
+
     fn jump_rel(&mut self, cond: bool) -> Result<bool, RuntimeError> {
+        let offset = self.fetch_byte() as i8 as isize;
+        let base = self.ip as isize;
         if cond {
-            let offset = self.memory[self.ip as usize + 1] as i8 as isize;
-            let base = self.ip as isize + 2;
             let new_ip = base.wrapping_add(offset);
 
             if new_ip < 0 || (new_ip as usize) >= self.program_end {
@@ -277,9 +210,6 @@ impl Vm {
             }
 
             self.ip = new_ip as u16;
-        } else {
-            // skip jump and offset bytes
-            self.ip = self.ip.wrapping_add(2);
         }
 
         Ok(false)
@@ -287,22 +217,21 @@ impl Vm {
 
     // Return halt signal
     pub fn exec_instruction(&mut self) -> RuntimeResult<bool> {
-        let byte = self.memory[self.ip as usize];
+        let byte = self.fetch_byte();
         let instr = Instr::from_u8(byte)
             .ok_or(RuntimeError(format!("unknown instruction: 0x{:2X}", byte)))?;
 
         match instr {
             Instr::Push16 => {
-                let word = self.read_word(self.ip + 1);
+                let word = self.fetch_word();
                 self.push_word(word)?;
-                self.ip += 2;
             }
             Instr::Halt => return Ok(true),
-            Instr::Iadd
-            | Instr::Isub
-            | Instr::Imul
-            | Instr::Idiv
-            | Instr::Icmp
+            Instr::Add
+            | Instr::Sub
+            | Instr::Mul
+            | Instr::Div
+            | Instr::Cmp
             | Instr::And
             | Instr::Or
             | Instr::Xor
@@ -311,10 +240,10 @@ impl Vm {
                 let left = self.pop_word()?;
 
                 let (result, overflow) = match instr {
-                    Instr::Iadd => left.overflowing_add(right),
-                    Instr::Isub | Instr::Icmp => left.overflowing_sub(right),
-                    Instr::Imul => left.overflowing_mul(right),
-                    Instr::Idiv => {
+                    Instr::Add => left.overflowing_add(right),
+                    Instr::Sub | Instr::Cmp => left.overflowing_sub(right),
+                    Instr::Mul => left.overflowing_mul(right),
+                    Instr::Div => {
                         if right == 0 {
                             return Err(RuntimeError("division by zero".into()));
                         }
@@ -349,7 +278,7 @@ impl Vm {
                     _ => unreachable!(),
                 };
 
-                if !(matches!(instr, Instr::Icmp)) {
+                if !(matches!(instr, Instr::Cmp)) {
                     self.push_word(result)?;
                 }
 
@@ -360,17 +289,13 @@ impl Vm {
                 self.push_word((!operand).wrapping_add(1))?
             }
             Instr::Store8 => {
-                let offset = self.memory[self.ip as usize + 1] as u16;
-                self.ip += 1;
-
+                let offset = self.fetch_byte() as u16;
                 let addr = self.registers.get_fp() - offset * 2;
                 let val = self.pop_word()?;
                 self.write_word(addr, val)?;
             }
             Instr::Load8 => {
-                let offset = self.memory[self.ip as usize + 1] as u16;
-                self.ip += 1;
-
+                let offset = self.fetch_byte() as u16;
                 let addr = self.registers.get_fp() - offset * 2;
                 self.push_word(self.read_word(addr))?;
             }
@@ -383,8 +308,7 @@ impl Vm {
                 self.push_word(!val)?;
             }
             Instr::Mov => {
-                self.ip += 1;
-                let inp = self.memory[self.ip as usize];
+                let inp = self.fetch_byte();
 
                 let rd = inp >> 4;
                 let rs = inp & 0xF;
@@ -392,14 +316,11 @@ impl Vm {
                 self.registers.set_reg(rd, self.registers.get_reg(rs)?)?;
             }
             Instr::Pushr => {
-                self.ip += 1;
-                let rs = self.memory[self.ip as usize];
-
+                let rs = self.fetch_byte();
                 self.push_word(self.registers.get_reg(rs)?)?;
             }
             Instr::Popr => {
-                self.ip += 1;
-                let rd = self.memory[self.ip as usize];
+                let rd = self.fetch_byte();
                 let word = self.pop_word()?;
 
                 self.registers.set_reg(rd, word)?;
@@ -413,9 +334,41 @@ impl Vm {
                 let addr = self.pop_word()?;
                 self.write_word(addr, val)?;
             }
+            Instr::Call => {
+                let addr = self.fetch_word();
+                self.ip = addr;
+                self.push_word(self.ip)?;
+            }
+            Instr::Ret => {
+                let addr = self.pop_word()?;
+                self.ip = addr;
+            }
+            Instr::Print => {
+                let ch = self.pop_word()? as u8;
+
+                // read cursor position (word)
+                let pos = self.read_word(CURSOR_ADDR as u16) as usize;
+
+                if pos < VIDEO_SIZE {
+                    self.memory[VIDEO_BASE + pos] = ch;
+
+                    // advance cursor, wrap if needed
+                    let mut new_pos = pos + 1;
+                    if new_pos >= VIDEO_SIZE {
+                        new_pos = 0;
+                    }
+
+                    self.write_word(CURSOR_ADDR as u16, new_pos as u16)?;
+                }
+            }
+            Instr::MvCur => {
+                let offset = self.fetch_byte() as i8;
+                let cur = self.read_word(CURSOR_ADDR as u16) as i16;
+                let new_cur = (cur + offset as i16).clamp(0, (VIDEO_SIZE - 1) as i16);
+                self.write_word(CURSOR_ADDR as u16, new_cur as u16)?;
+            }
         }
 
-        self.ip += 1;
         Ok(false)
     }
 

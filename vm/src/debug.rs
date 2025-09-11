@@ -1,7 +1,8 @@
 use std::io::{self, Write};
 
 use crate::error::RuntimeResult;
-use crate::vm::{Instr, MEM_SIZE, Vm};
+use crate::instr::Instr;
+use crate::vm::{MEM_SIZE, Vm};
 
 pub struct Debugger {
     vm: Vm,
@@ -58,12 +59,12 @@ impl Debugger {
                 let off = vm.memory.get(ip + 1).copied().unwrap_or(0) as i8;
                 format!("JEQ8 {}", off)
             }
-            Some(Instr::Iadd) => "IADD".into(),
-            Some(Instr::Isub) => "ISUB".into(),
-            Some(Instr::Imul) => "IMUL".into(),
-            Some(Instr::Idiv) => "IDIV".into(),
+            Some(Instr::Add) => "IADD".into(),
+            Some(Instr::Sub) => "ISUB".into(),
+            Some(Instr::Mul) => "IMUL".into(),
+            Some(Instr::Div) => "IDIV".into(),
             Some(Instr::Neg) => "NEG".into(),
-            Some(Instr::Icmp) => "ICMP".into(),
+            Some(Instr::Cmp) => "ICMP".into(),
             Some(Instr::Not) => "NOT".into(),
             Some(Instr::Halt) => "HALT".into(),
             Some(Instr::And) => "AND".into(),
@@ -84,6 +85,16 @@ impl Debugger {
             Some(Instr::Popr) => {
                 let rd = vm.memory.get(ip + 1).copied().unwrap_or(0);
                 format!("POPR r{}", rd)
+            }
+            Some(Instr::Call) => match Self::read_word(&vm.memory, ip + 1) {
+                Some(addr) => format!("CALL 0x{:04X}", addr),
+                None => "CALL <truncated>".into(),
+            },
+            Some(Instr::Ret) => "RET".into(),
+            Some(Instr::Print) => "PRINT".into(),
+            Some(Instr::MvCur) => {
+                let offset = vm.memory.get(ip + 1).copied().unwrap_or(0) as i8;
+                format!("MVCUR {}", offset)
             }
             None => format!("DB 0x{:02X}", op),
         }

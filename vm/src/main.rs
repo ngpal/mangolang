@@ -4,6 +4,8 @@ use std::{fs, process};
 use crate::{debug::Debugger, vm::Vm};
 mod debug;
 mod error;
+mod instr;
+mod video;
 mod vm;
 
 #[derive(Parser, Debug)]
@@ -40,16 +42,19 @@ fn main() {
     if cli.debugger {
         println!("Entering debugger");
         if let Err(err) = Debugger::new(vm).debug() {
-            println!("{}", err)
-        };
-
-        process::exit(0);
-    } else {
-        if let Err(err) = vm.exec() {
-            eprintln!("{}", err);
-            process::exit(1);
+            println!("{}", err);
         }
+        process::exit(0);
     }
+
+    // always run in video mode
+    let mut video = video::VideoMemory::new();
+    if let Err(err) = video.run(&mut vm) {
+        eprintln!("video error: {}", err);
+        process::exit(1);
+    }
+
+    // optional stack inspection
     if cli.show_top {
         let raw = vm.top_word();
         println!("top of stack: as u16 = {}, as i16 = {}", raw, raw as i16);

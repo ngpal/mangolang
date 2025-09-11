@@ -61,12 +61,14 @@
     - [x] compiler
     - [x] binary gen
 
-  - [ ] vm
-    - [ ] must inc ip as soon as instruction is fetched for ret and call purposes
-    - [ ] implement video memory
-    - [ ] implement print video memory slice up until the cursor
-    - [ ] implement instructions
+  - [x] vm
+    - [x] must inc ip as soon as instruction is fetched for ret and call purposes
+    - [x] new instructions 
+    - [x] implement video memory
+    - [x] implement print video memory with crossterm
+    - [x] implement instructions
 
+- [ ] debugger upgrade
 - [ ] split compiler into compiler, assembler and linker
 - [ ] rewrite hardcoded print subroutine in assembly
 - [ ] unit type
