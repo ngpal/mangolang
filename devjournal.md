@@ -46,6 +46,17 @@
   - new instructions
     - PRINT - pops from the stack and writes the lower 8 bits to the vidoe memory
     - VFLSH - clears and rewrites the text
+  - [ ] lexer
+  - [ ] parser
+  - [ ] type checker
+  - [ ] semantics (not really needed)
+  - [ ] isa and grammar
+  - [ ] codegen
+  - [ ] vm
+    - [ ] implement video memory
+    - [ ] implement stdout with crossterm alt window
+    - [ ] implement instructions
+
 - [ ] unit type
 - [ ] semicolon/newline split like rust
 - [ ] fix the typing issues with if expressions
