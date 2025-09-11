@@ -41,7 +41,7 @@
 
 - [x] add slices to all the errors ever
 
-- [ ] writing output (hacky)
+- [x] writing output (hacky)
   - I'm going to use a disp keyword followed by an expression which will write that information ("magically" converts ints and bools) into video memory
   - new instructions
     - PRINT - pops from the stack and writes the lower 8 bits to the video memory at cursor

@@ -336,8 +336,8 @@ impl Vm {
             }
             Instr::Call => {
                 let addr = self.fetch_word();
-                self.ip = addr;
                 self.push_word(self.ip)?;
+                self.ip = addr;
             }
             Instr::Ret => {
                 let addr = self.pop_word()?;
@@ -346,20 +346,26 @@ impl Vm {
             Instr::Print => {
                 let ch = self.pop_word()? as u8;
 
-                // read cursor position (word)
-                let pos = self.read_word(CURSOR_ADDR as u16) as usize;
+                // read cursor position
+                let mut pos = self.read_word(CURSOR_ADDR as u16) as usize;
 
-                if pos < VIDEO_SIZE {
-                    self.memory[VIDEO_BASE + pos] = ch;
-
-                    // advance cursor, wrap if needed
-                    let mut new_pos = pos + 1;
-                    if new_pos >= VIDEO_SIZE {
-                        new_pos = 0;
+                if ch == b'\n' {
+                    // move cursor to start of next line
+                    let row = pos / VIDEO_WIDTH;
+                    let next_row = (row + 1) % VIDEO_HEIGHT;
+                    pos = next_row * VIDEO_WIDTH;
+                } else {
+                    if pos < VIDEO_SIZE {
+                        self.memory[VIDEO_BASE + pos] = ch;
+                        // advance cursor
+                        pos += 1;
+                        if pos >= VIDEO_SIZE {
+                            pos = 0;
+                        }
                     }
-
-                    self.write_word(CURSOR_ADDR as u16, new_pos as u16)?;
                 }
+
+                self.write_word(CURSOR_ADDR as u16, pos as u16)?;
             }
             Instr::MvCur => {
                 let offset = self.fetch_byte() as i8;

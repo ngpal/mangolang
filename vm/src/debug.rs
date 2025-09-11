@@ -27,6 +27,7 @@ impl<'a> Debugger<'a> {
         let mut running = false; // true if 'c' pressed
 
         let result = (|| {
+            let mut halted = false;
             loop {
                 execute!(stdout, MoveTo(0, 0), Clear(ClearType::All))?;
 
@@ -59,10 +60,15 @@ impl<'a> Debugger<'a> {
                             KeyCode::Char('q') => break Ok(()),
                             KeyCode::Char('s') => {
                                 // single step
-                                match self.vm.exec_instruction() {
-                                    Ok(true) => info_lines.push("program halted".into()),
-                                    Ok(false) => {}
-                                    Err(e) => info_lines.push(format!("runtime error: {}", e)),
+                                if !halted {
+                                    match self.vm.exec_instruction() {
+                                        Ok(true) => {
+                                            info_lines.push("program halted".into());
+                                            halted = true;
+                                        }
+                                        Ok(false) => {}
+                                        Err(e) => info_lines.push(format!("runtime error: {}", e)),
+                                    }
                                 }
                             }
                             KeyCode::Char('c') => running = true, // continue
@@ -288,17 +294,21 @@ impl<'a> Debugger<'a> {
 
     fn draw_stack(&self, stdout: &mut std::io::Stdout) -> io::Result<()> {
         execute!(stdout, Print("\r\nStack (top -> bottom):\r\n"))?;
+
         let mut sp = self.vm.registers.get_sp() as usize;
         let mem = &self.vm.memory;
 
+        // top of stack is sp + 2, print downward
         for _ in 0..16 {
-            if sp + 1 >= mem.len() {
+            let top = sp + 2;
+            if top + 1 >= mem.len() {
                 break;
             }
-            let val = u16::from_le_bytes([mem[sp], mem[sp + 1]]);
-            execute!(stdout, Print(format!("[0x{:04X}] = {:04X}\r\n", sp, val)))?;
+            let val = u16::from_le_bytes([mem[top], mem[top + 1]]);
+            execute!(stdout, Print(format!("[0x{:04X}] = {:04X}\r\n", top, val)))?;
             sp += 2;
         }
+
         Ok(())
     }
 
