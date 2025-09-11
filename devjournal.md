@@ -39,7 +39,7 @@
   - [x] vm
     - [x] allow access to stack and frame pointers through registers r4 and r5
 
-- [ ] add slices to all the errors ever
+- [x] add slices to all the errors ever
 
 - [ ] writing output (hacky)
   - I'm going to use a disp keyword followed by an expression which will write that information ("magically" converts ints and bools) into video memory
