@@ -1,5 +1,5 @@
 use crossterm::{
-    cursor::{Hide, MoveTo, Show},
+    cursor::{Hide, MoveDown, MoveLeft, MoveTo, Show},
     event::{self, Event, KeyCode},
     execute,
     style::Print,
@@ -7,15 +7,16 @@ use crossterm::{
 };
 use std::io::{self, Write, stdout};
 
-use crate::vm::Vm;
+use crate::vm::{VIDEO_BASE, VIDEO_HEIGHT, VIDEO_WIDTH, Vm};
 
 pub struct Debugger<'a> {
     vm: &'a mut Vm,
+    mem_offset: usize, // starting address of memory view
 }
 
 impl<'a> Debugger<'a> {
     pub fn new(vm: &'a mut Vm) -> Self {
-        Self { vm }
+        Self { vm, mem_offset: 0 }
     }
 
     pub fn run(&mut self) -> io::Result<()> {
@@ -32,12 +33,20 @@ impl<'a> Debugger<'a> {
                 execute!(stdout, MoveTo(0, 0), Clear(ClearType::All))?;
 
                 // draw panels
+                // // draw screen at (0,0)
+                execute!(stdout, MoveTo(0, 0))?;
+                self.draw_screen(&mut stdout)?;
+
+                // draw disassembly at (WIDTH+4, 0)
+                execute!(stdout, MoveTo((VIDEO_WIDTH + 4) as u16, 0))?;
                 self.draw_disassembly(&mut stdout)?;
+
+                execute!(stdout, MoveDown(2))?;
+                self.draw_memory(&mut stdout, self.mem_offset, 8)?; // first 8 rows of memory
                 self.draw_registers(&mut stdout)?;
                 self.draw_stack(&mut stdout)?;
-                self.draw_memory(&mut stdout, 0, 8)?; // first 8 rows of memory
-                self.draw_screen(&mut stdout)?;
                 self.draw_info(&mut stdout, &info_lines)?;
+                self.draw_help(&mut stdout)?;
 
                 stdout.flush()?;
 
@@ -72,6 +81,18 @@ impl<'a> Debugger<'a> {
                                 }
                             }
                             KeyCode::Char('c') => running = true, // continue
+                            KeyCode::Char('+') => {
+                                if self.mem_offset + 0x80 < self.vm.memory.len() {
+                                    self.mem_offset += 0x80; // scroll down 8 rows (8*16=0x80 bytes)
+                                }
+                            }
+                            KeyCode::Char('-') => {
+                                if self.mem_offset >= 0x80 {
+                                    self.mem_offset -= 0x80; // scroll up
+                                } else {
+                                    self.mem_offset = 0;
+                                }
+                            }
                             _ => {}
                         }
                     }
@@ -126,23 +147,37 @@ impl<'a> Debugger<'a> {
     }
 
     fn draw_screen(&self, stdout: &mut std::io::Stdout) -> io::Result<()> {
-        const VIDEO_BASE: usize = 0x8000; // VM video memory start
-        const WIDTH: usize = 32;
-        const HEIGHT: usize = 16;
+        execute!(stdout, Print("┏"))?; // top-left corner
+        for _ in 0..VIDEO_WIDTH {
+            execute!(stdout, Print("━"))?;
+        }
+        execute!(stdout, Print("┓\r\n"))?; // top-right
 
-        execute!(stdout, Print("\r\nScreen:\r\n"))?;
-        for y in 0..HEIGHT {
-            for x in 0..WIDTH {
-                let idx = VIDEO_BASE + y * WIDTH + x;
+        for y in 0..VIDEO_HEIGHT {
+            execute!(stdout, Print("┃"))?; // left border
+            for x in 0..VIDEO_WIDTH {
+                let idx = VIDEO_BASE + y * VIDEO_WIDTH + x;
                 if idx >= self.vm.memory.len() {
                     break;
                 }
+
                 let ch = self.vm.memory[idx];
-                let display = if ch == 0 { ' ' } else { ch as char };
+                let display = if ch == 0 || ch == b'\n' {
+                    ' '
+                } else {
+                    ch as char
+                };
                 execute!(stdout, Print(display))?;
             }
-            execute!(stdout, Print("\r\n"))?;
+            execute!(stdout, Print("┃\r\n"))?; // right border + newline
         }
+
+        execute!(stdout, Print("┗"))?; // bottom-left
+        for _ in 0..VIDEO_WIDTH {
+            execute!(stdout, Print("━"))?;
+        }
+        execute!(stdout, Print("┛\r\n"))?; // bottom-right
+
         Ok(())
     }
 
@@ -152,8 +187,9 @@ impl<'a> Debugger<'a> {
 
         execute!(
             stdout,
-            MoveTo(0, 0),
-            Print("┏━━ Disassembly ━━━━━━━━━━━━━━━━━━━━━━━┓\r\n")
+            Print("┏━━ Disassembly ━━━━━━━━━━━━━━━━━━━━━━━┓"),
+            MoveDown(1),
+            MoveLeft(40)
         )?;
 
         for _ in 0..lines {
@@ -165,14 +201,18 @@ impl<'a> Debugger<'a> {
             };
             execute!(
                 stdout,
-                Print(format!("{} 0x{:04X}: {:<20}\r\n", marker, addr, instr))
+                Print(format!("{} 0x{:04X}: {:<20}", marker, addr, instr)),
+                MoveDown(1),
+                MoveLeft(30),
             )?;
             addr += size;
         }
 
         execute!(
             stdout,
-            Print("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\r\n")
+            Print("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"),
+            MoveDown(1),
+            MoveLeft(30),
         )?;
         Ok(())
     }
@@ -318,6 +358,16 @@ impl<'a> Debugger<'a> {
             // show last 5 messages
             execute!(stdout, Print(line), Print("\r\n"))?;
         }
+        Ok(())
+    }
+
+    fn draw_help(&self, stdout: &mut std::io::Stdout) -> io::Result<()> {
+        execute!(
+            stdout,
+            Print("\r\nShortcuts:\r\n"),
+            Print("  q - quit  |  s - step  |  c - continue\r\n"),
+            Print("  + - scroll memory down  |  - - scroll memory up\r\n"),
+        )?;
         Ok(())
     }
 }
