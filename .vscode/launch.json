@@ -20,7 +20,7 @@
                     "kind": "bin"
                 }
             },
-            "args": ["-b", "test.mg"],
+            "args": ["test.mg"],
             "cwd": "${workspaceFolder}"
         },
         {
