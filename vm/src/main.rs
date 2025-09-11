@@ -41,7 +41,7 @@ fn main() {
 
     if cli.debugger {
         println!("Entering debugger");
-        if let Err(err) = Debugger::new(vm).debug() {
+        if let Err(err) = Debugger::new(&mut vm).run() {
             println!("{}", err);
         }
         process::exit(0);

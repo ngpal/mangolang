@@ -1,206 +1,313 @@
-use std::io::{self, Write};
+use crossterm::{
+    cursor::{Hide, MoveTo, Show},
+    event::{self, Event, KeyCode},
+    execute,
+    style::Print,
+    terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use std::io::{self, Write, stdout};
 
-use crate::error::RuntimeResult;
-use crate::instr::Instr;
-use crate::vm::{MEM_SIZE, Vm};
+use crate::vm::Vm;
 
-pub struct Debugger {
-    vm: Vm,
+pub struct Debugger<'a> {
+    vm: &'a mut Vm,
 }
 
-impl Debugger {
-    pub fn new(vm: Vm) -> Self {
+impl<'a> Debugger<'a> {
+    pub fn new(vm: &'a mut Vm) -> Self {
         Self { vm }
     }
 
-    fn read_word(mem: &[u8], addr: usize) -> Option<u16> {
-        if addr + 1 < mem.len() {
-            Some(u16::from_le_bytes([mem[addr], mem[addr + 1]]))
-        } else {
-            None
-        }
-    }
+    pub fn run(&mut self) -> io::Result<()> {
+        let mut stdout = stdout();
+        execute!(stdout, EnterAlternateScreen, Hide)?;
+        terminal::enable_raw_mode()?;
 
-    fn disasm_at(vm: &Vm) -> String {
-        let ip = vm.ip as usize;
-        if ip >= vm.program_end {
-            return "EOF".to_string();
-        }
+        let mut info_lines: Vec<String> = vec!["hit 'q' to quit debugger".into()];
+        let mut running = false; // true if 'c' pressed
 
-        let op = vm.memory[ip];
-        match Instr::from_u8(op) {
-            Some(Instr::Push16) => match Self::read_word(&vm.memory, ip + 1) {
-                Some(imm) => format!("PUSH16 {}", imm),
-                None => "PUSH16 <truncated>".into(),
-            },
-            Some(Instr::Load8) => {
-                let v = vm.memory.get(ip + 1).copied().unwrap_or(0);
-                format!("LOAD8 {}", v)
-            }
-            Some(Instr::Store8) => {
-                let v = vm.memory.get(ip + 1).copied().unwrap_or(0);
-                format!("STORE8 {}", v)
-            }
-            Some(Instr::Loadp) => "LOADP".into(),
-            Some(Instr::Storep) => "STOREP".into(),
-            Some(Instr::Jmp8) => {
-                let off = vm.memory.get(ip + 1).copied().unwrap_or(0) as i8;
-                format!("JMP8 {}", off)
-            }
-            Some(Instr::Jlt8) => {
-                let off = vm.memory.get(ip + 1).copied().unwrap_or(0) as i8;
-                format!("JLT8 {}", off)
-            }
-            Some(Instr::Jgt8) => {
-                let off = vm.memory.get(ip + 1).copied().unwrap_or(0) as i8;
-                format!("JGT8 {}", off)
-            }
-            Some(Instr::Jeq8) => {
-                let off = vm.memory.get(ip + 1).copied().unwrap_or(0) as i8;
-                format!("JEQ8 {}", off)
-            }
-            Some(Instr::Add) => "IADD".into(),
-            Some(Instr::Sub) => "ISUB".into(),
-            Some(Instr::Mul) => "IMUL".into(),
-            Some(Instr::Div) => "IDIV".into(),
-            Some(Instr::Neg) => "NEG".into(),
-            Some(Instr::Cmp) => "ICMP".into(),
-            Some(Instr::Not) => "NOT".into(),
-            Some(Instr::Halt) => "HALT".into(),
-            Some(Instr::And) => "AND".into(),
-            Some(Instr::Or) => "OR".into(),
-            Some(Instr::Xor) => "XOR".into(),
-            Some(Instr::Shft) => "SHFT".into(),
-            Some(Instr::Mov) => {
-                let inp = vm.memory.get(ip + 1).copied().unwrap_or(0);
-                let rd = inp >> 4;
-                let rs = inp & 0xf;
+        let result = (|| {
+            loop {
+                execute!(stdout, MoveTo(0, 0), Clear(ClearType::All))?;
 
-                format!("MOV r{} r{}", rd, rs)
-            }
-            Some(Instr::Pushr) => {
-                let rs = vm.memory.get(ip + 1).copied().unwrap_or(0);
-                format!("PUSHR r{}", rs)
-            }
-            Some(Instr::Popr) => {
-                let rd = vm.memory.get(ip + 1).copied().unwrap_or(0);
-                format!("POPR r{}", rd)
-            }
-            Some(Instr::Call) => match Self::read_word(&vm.memory, ip + 1) {
-                Some(addr) => format!("CALL 0x{:04X}", addr),
-                None => "CALL <truncated>".into(),
-            },
-            Some(Instr::Ret) => "RET".into(),
-            Some(Instr::Print) => "PRINT".into(),
-            Some(Instr::MvCur) => {
-                let offset = vm.memory.get(ip + 1).copied().unwrap_or(0) as i8;
-                format!("MVCUR {}", offset)
-            }
-            None => format!("DB 0x{:02X}", op),
-        }
-    }
+                // draw panels
+                self.draw_disassembly(&mut stdout)?;
+                self.draw_registers(&mut stdout)?;
+                self.draw_stack(&mut stdout)?;
+                self.draw_memory(&mut stdout, 0, 8)?; // first 8 rows of memory
+                self.draw_screen(&mut stdout)?;
+                self.draw_info(&mut stdout, &info_lines)?;
 
-    pub fn debug(&mut self) -> RuntimeResult<()> {
-        loop {
-            let next = Self::disasm_at(&self.vm);
-            let top = if self.vm.registers.get_sp() < 0xFFFE {
-                Some(self.vm.top_word())
-            } else {
-                None
-            };
+                stdout.flush()?;
 
-            let gprs: Result<Vec<String>, _> = (0..4)
-                .map(|i| Ok(format!("r{}={:04X}", i, self.vm.registers.get_reg(i)?)))
-                .collect();
-            let gprs = gprs?;
-
-            println!(
-                "IP: 0x{:04X} | SP: 0x{:04X} | FP: 0x{:04X} | {} | Flags [Z:{} N:{} V:{}] | Top: {:?} | Next: {}",
-                self.vm.ip,
-                self.vm.registers.get_sp(),
-                self.vm.registers.get_fp(),
-                gprs.join(" "),
-                self.vm.flags.z,
-                self.vm.flags.n,
-                self.vm.flags.v,
-                top,
-                next
-            );
-
-            // prompt
-            print!("(debug) ");
-            io::stdout().flush().unwrap();
-
-            // read command
-            let mut input = String::new();
-            io::stdin().read_line(&mut input).unwrap();
-            let cmd = input.trim();
-
-            match cmd {
-                "step" | "s" => {
-                    let halt = self.vm.exec_instruction()?;
-                    if halt {
-                        println!("program halted");
-                        break;
+                // handle VM execution
+                if running {
+                    match self.vm.exec_instruction() {
+                        Ok(true) => info_lines.push("program halted".into()),
+                        Ok(false) => {}
+                        Err(e) => {
+                            info_lines.push(format!("runtime error: {}", e));
+                            running = false;
+                        }
                     }
                 }
-                "continue" | "c" => {
-                    self.vm.exec()?;
-                    println!("program finished");
+
+                // poll keyboard
+                if event::poll(std::time::Duration::from_millis(50))? {
+                    if let Event::Key(key) = event::read()? {
+                        match key.code {
+                            KeyCode::Char('q') => break Ok(()),
+                            KeyCode::Char('s') => {
+                                // single step
+                                match self.vm.exec_instruction() {
+                                    Ok(true) => info_lines.push("program halted".into()),
+                                    Ok(false) => {}
+                                    Err(e) => info_lines.push(format!("runtime error: {}", e)),
+                                }
+                            }
+                            KeyCode::Char('c') => running = true, // continue
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        })();
+
+        terminal::disable_raw_mode()?;
+        execute!(stdout, Show, LeaveAlternateScreen)?;
+
+        result
+    }
+
+    fn draw_memory(
+        &self,
+        stdout: &mut std::io::Stdout,
+        start_addr: usize,
+        rows: usize,
+    ) -> io::Result<()> {
+        execute!(stdout, Print("\r\nMemory (hex dump):\r\n"))?;
+        let mem = &self.vm.memory;
+        for r in 0..rows {
+            let addr = start_addr + r * 16;
+            if addr >= mem.len() {
+                break;
+            }
+            let line_bytes: Vec<String> = mem[addr..(addr + 16).min(mem.len())]
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect();
+            let ascii: String = mem[addr..(addr + 16).min(mem.len())]
+                .iter()
+                .map(|b| {
+                    if b.is_ascii_graphic() || *b == b' ' {
+                        *b as char
+                    } else {
+                        '.'
+                    }
+                })
+                .collect();
+            execute!(
+                stdout,
+                Print(format!(
+                    "{:04X}: {:<48}  {}\r\n",
+                    addr,
+                    line_bytes.join(" "),
+                    ascii
+                ))
+            )?;
+        }
+        Ok(())
+    }
+
+    fn draw_screen(&self, stdout: &mut std::io::Stdout) -> io::Result<()> {
+        const VIDEO_BASE: usize = 0x8000; // VM video memory start
+        const WIDTH: usize = 32;
+        const HEIGHT: usize = 16;
+
+        execute!(stdout, Print("\r\nScreen:\r\n"))?;
+        for y in 0..HEIGHT {
+            for x in 0..WIDTH {
+                let idx = VIDEO_BASE + y * WIDTH + x;
+                if idx >= self.vm.memory.len() {
                     break;
                 }
-                "stack" | "stk" => {
-                    println!("Stack snapshot (top → bottom):");
-                    let mut sp = self.vm.registers.get_sp() as usize;
-                    while sp + 1 < MEM_SIZE && sp < 0xFFFE {
-                        let val = u16::from_le_bytes([self.vm.memory[sp], self.vm.memory[sp + 1]]);
-                        println!("  [0x{:04X}] = {}", sp, val);
-                        sp += 2;
-                    }
-                }
-                "flags" | "f" => {
-                    println!(
-                        "Flags -> Z:{} N:{} V:{}",
-                        self.vm.flags.z, self.vm.flags.n, self.vm.flags.v
-                    );
-                }
-                "ip" => println!("IP: 0x{:04X}", self.vm.ip),
-                "mem" => {
-                    let ip = self.vm.ip as usize;
-                    let end = (ip + 8).min(self.vm.program_end);
-                    print!("mem[0x{:04X}..0x{:04X}]:", ip, end);
-                    for i in ip..end {
-                        print!(" {:02X}", self.vm.memory[i]);
-                    }
-                    println!();
-                }
-                "regs" | "r" => {
-                    println!("Registers:");
-                    for i in 0..4 {
-                        println!("  r{} = 0x{:04X}", i, self.vm.registers.get_reg(i).unwrap());
-                    }
-                    println!("  SP = 0x{:04X}", self.vm.registers.get_sp());
-                    println!("  FP = 0x{:04X}", self.vm.registers.get_fp());
-                    println!("  IP = 0x{:04X}", self.vm.ip);
-                }
-                "help" | "h" => {
-                    println!("commands:");
-                    println!("  step | s      - execute next instruction");
-                    println!("  continue | c  - run until halt");
-                    println!("  regs | r      - show registers");
-                    println!("  stack | stk   - show stack contents");
-                    println!("  flags | f     - show flags");
-                    println!("  ip            - show instruction pointer");
-                    println!("  mem           - show next few bytes of memory");
-                    println!("  help | h      - show this message");
-                    println!("  quit | q      - exit debugger");
-                }
-                "quit" | "q" => break,
-                "" => continue, // empty line, just loop
-                _ => println!("unknown command: '{}', try 'help'", cmd),
+                let ch = self.vm.memory[idx];
+                let display = if ch == 0 { ' ' } else { ch as char };
+                execute!(stdout, Print(display))?;
             }
+            execute!(stdout, Print("\r\n"))?;
+        }
+        Ok(())
+    }
+
+    fn draw_disassembly(&mut self, stdout: &mut std::io::Stdout) -> io::Result<()> {
+        let mut addr = self.vm.ip as usize;
+        let lines = 10; // number of instructions to display
+
+        execute!(
+            stdout,
+            MoveTo(0, 0),
+            Print("┏━━ Disassembly ━━━━━━━━━━━━━━━━━━━━━━━┓\r\n")
+        )?;
+
+        for _ in 0..lines {
+            let (instr, size) = self.disasm_at(addr);
+            let marker = if addr == self.vm.ip as usize {
+                ">"
+            } else {
+                " "
+            };
+            execute!(
+                stdout,
+                Print(format!("{} 0x{:04X}: {:<20}\r\n", marker, addr, instr))
+            )?;
+            addr += size;
         }
 
+        execute!(
+            stdout,
+            Print("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\r\n")
+        )?;
+        Ok(())
+    }
+
+    fn disasm_at(&mut self, addr: usize) -> (String, usize) {
+        let op = self.vm.memory.get(addr).copied().unwrap_or(0);
+        let mut size = 1;
+        let instr_str = match op {
+            0x01 => {
+                // PUSH16
+                let imm = if addr + 2 < self.vm.memory.len() {
+                    u16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]])
+                } else {
+                    0
+                };
+                size = 3;
+                format!("PUSH16 {}", imm)
+            }
+            0x0F => "HALT".into(),
+            0x10 => {
+                size = 2;
+                format!("LOAD8 {}", self.vm.memory[addr + 1])
+            }
+            0x11 => {
+                size = 2;
+                format!("STORE8 {}", self.vm.memory[addr + 1])
+            }
+            0x12 => "LOADP".into(),
+            0x13 => "STOREP".into(),
+            0x20 => {
+                size = 2;
+                format!("JMP8 {}", self.vm.memory[addr + 1] as i8)
+            }
+            0x21 => {
+                size = 2;
+                format!("JLT8 {}", self.vm.memory[addr + 1] as i8)
+            }
+            0x22 => {
+                size = 2;
+                format!("JGT8 {}", self.vm.memory[addr + 1] as i8)
+            }
+            0x23 => {
+                size = 2;
+                format!("JEQ8 {}", self.vm.memory[addr + 1] as i8)
+            }
+            0x24 => {
+                size = 3;
+                let addr16 =
+                    u16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
+                format!("CALL 0x{:04X}", addr16)
+            }
+            0x25 => {
+                size = 2;
+                format!("RET")
+            } // ignore rel8 for simplicity
+            0x30 => "ADD".into(),
+            0x31 => "SUB".into(),
+            0x32 => "MUL".into(),
+            0x33 => "DIV".into(),
+            0x34 => "NEG".into(),
+            0x35 => "CMP".into(),
+            0x40 => "NOT".into(),
+            0x41 => "AND".into(),
+            0x42 => "OR".into(),
+            0x43 => "XOR".into(),
+            0x44 => "SHFT".into(),
+            0x50 => {
+                // MOV rd, rs
+                size = 2;
+                let byte = self.vm.memory[addr + 1];
+                let rd = byte >> 4;
+                let rs = byte & 0xF;
+                format!("MOV r{} r{}", rd, rs)
+            }
+            0x51 => {
+                size = 2;
+                format!("PUSHR r{}", self.vm.memory[addr + 1])
+            }
+            0x52 => {
+                size = 2;
+                format!("POPR r{}", self.vm.memory[addr + 1])
+            }
+            0x60 => "PRINT".into(),
+            0x61 => {
+                size = 2;
+                format!("MVCUR {}", self.vm.memory[addr + 1] as i8)
+            }
+            _ => format!("DB 0x{:02X}", op),
+        };
+
+        (instr_str, size)
+    }
+
+    fn draw_registers(&self, stdout: &mut std::io::Stdout) -> io::Result<()> {
+        let r = |i| self.vm.registers.get_reg(i).unwrap_or(0);
+        let sp = self.vm.registers.get_sp();
+        let fp = self.vm.registers.get_fp();
+        let ip = self.vm.ip;
+        let f = &self.vm.flags;
+
+        execute!(
+            stdout,
+            Print(format!(
+                "\r\nRegisters + Flags:\r\nr0={:04X} r1={:04X} r2={:04X} r3={:04X} SP={:04X} FP={:04X} IP={:04X} Flags: Z={} N={} V={}\r\n",
+                r(0),
+                r(1),
+                r(2),
+                r(3),
+                sp,
+                fp,
+                ip,
+                f.z,
+                f.n,
+                f.v
+            ))
+        )?;
+        Ok(())
+    }
+
+    fn draw_stack(&self, stdout: &mut std::io::Stdout) -> io::Result<()> {
+        execute!(stdout, Print("\r\nStack (top -> bottom):\r\n"))?;
+        let mut sp = self.vm.registers.get_sp() as usize;
+        let mem = &self.vm.memory;
+
+        for _ in 0..16 {
+            if sp + 1 >= mem.len() {
+                break;
+            }
+            let val = u16::from_le_bytes([mem[sp], mem[sp + 1]]);
+            execute!(stdout, Print(format!("[0x{:04X}] = {:04X}\r\n", sp, val)))?;
+            sp += 2;
+        }
+        Ok(())
+    }
+
+    fn draw_info(&self, stdout: &mut std::io::Stdout, info_lines: &[String]) -> io::Result<()> {
+        execute!(stdout, Print("\r\nInfo / Messages:\r\n"))?;
+        for line in info_lines.iter().rev().take(5) {
+            // show last 5 messages
+            execute!(stdout, Print(line), Print("\r\n"))?;
+        }
         Ok(())
     }
 }
