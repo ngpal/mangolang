@@ -40,6 +40,8 @@ impl Debugger {
                 let v = vm.memory.get(ip + 1).copied().unwrap_or(0);
                 format!("STORE8 {}", v)
             }
+            Some(Instr::Loadp) => "LOADP".into(),
+            Some(Instr::Storep) => "STOREP".into(),
             Some(Instr::Jmp8) => {
                 let off = vm.memory.get(ip + 1).copied().unwrap_or(0) as i8;
                 format!("JMP8 {}", off)

@@ -11,6 +11,8 @@ pub enum Instr {
     Halt = 0x0F,
     Load8 = 0x10,
     Store8 = 0x11,
+    Loadp = 0x12,
+    Storep = 0x13,
     Jmp8 = 0x20,
     Jlt8 = 0x21,
     Jgt8 = 0x22,
@@ -38,6 +40,8 @@ impl Instr {
             0x0F => Some(Instr::Halt),
             0x10 => Some(Instr::Load8),
             0x11 => Some(Instr::Store8),
+            0x12 => Some(Instr::Loadp),
+            0x13 => Some(Instr::Storep),
             0x20 => Some(Instr::Jmp8),
             0x21 => Some(Instr::Jlt8),
             0x22 => Some(Instr::Jgt8),
@@ -84,6 +88,8 @@ impl Instr {
             Instr::Or => 1,
             Instr::Shft => 1,
             Instr::Xor => 1,
+            Instr::Loadp => 1,
+            Instr::Storep => 1,
         }
     }
 }
@@ -104,23 +110,32 @@ impl Registers {
 
     // general purpose
     pub fn get_reg(&self, id: u8) -> RuntimeResult<u16> {
-        if id > 3 {
-            return Err(RuntimeError(format!("invalid general register r{}", id)));
-        }
-        Ok(self.0[id as usize])
+        Ok(match id {
+            0..=3 => self.0[id as usize],
+            4 => self.get_sp(),
+            5 => self.get_fp(),
+            _ => return Err(RuntimeError(format!("invalid general register r{}", id))),
+        })
     }
 
     pub fn set_reg(&mut self, id: u8, val: u16) -> RuntimeResult<()> {
-        if id > 3 {
-            return Err(RuntimeError(format!("invalid general register r{}", id)));
+        match id {
+            0..=3 => self.0[id as usize] = val,
+            4 => self.set_sp(val),
+            5 => self.set_fp(val),
+            _ => return Err(RuntimeError(format!("invalid general register r{}", id))),
         }
-        self.0[id as usize] = val;
+
         Ok(())
     }
 
     // stack pointer
     pub fn get_sp(&self) -> u16 {
         self.0[4]
+    }
+
+    pub fn set_sp(&mut self, val: u16) {
+        self.0[4] = val;
     }
 
     pub fn inc_sp(&mut self, amt: u16) {
@@ -388,6 +403,15 @@ impl Vm {
                 let word = self.pop_word()?;
 
                 self.registers.set_reg(rd, word)?;
+            }
+            Instr::Loadp => {
+                let addr = self.pop_word()?;
+                self.push_word(self.read_word(addr))?;
+            }
+            Instr::Storep => {
+                let val = self.pop_word()?;
+                let addr = self.pop_word()?;
+                self.write_word(addr, val)?;
             }
         }
 

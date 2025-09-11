@@ -36,8 +36,8 @@
   - [x] grammar
   - [x] isa
   - [x] codegen
-  - [ ] vm
-    - [ ] allow access to stack and frame pointers through registers r4 and r5
+  - [x] vm
+    - [x] allow access to stack and frame pointers through registers r4 and r5
 
 - [ ] add slices to all the errors ever
 
