@@ -1,7 +1,9 @@
 program        = (statement line_end)*;
 
-statement      = vardef | assignment | expr | break_stmt | continue_stmt;
+statement      = vardef | assignment | expr | break_stmt | continue_stmt | disp_stmt;
 line_end       = ";" | "\n";
+
+disp_stmt      = "disp" expr;
 
 vardef         = "var" ident [typedef] "=" expr;
 typedef        = type;

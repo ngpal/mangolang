@@ -17,7 +17,7 @@
 # 10-09-2025
 - [x] modulo operator
 
-- [ ] pointers
+- [x] pointers
   - @a to get pointer *a to deref
   - 16 bit, obviously
   - new instuctions
@@ -44,19 +44,31 @@
 - [ ] writing output (hacky)
   - I'm going to use a disp keyword followed by an expression which will write that information ("magically" converts ints and bools) into video memory
   - new instructions
-    - PRINT - pops from the stack and writes the lower 8 bits to the vidoe memory
-    - VFLSH - clears and rewrites the text
-  - [ ] lexer
-  - [ ] parser
-  - [ ] type checker
-  - [ ] semantics (not really needed)
-  - [ ] isa and grammar
+    - PRINT - pops from the stack and writes the lower 8 bits to the video memory at cursor
+    - MVCUR i8 - move the cursor relative to current position
+  - [x] lexer
+  - [x] parser
+  - [x] type checker
+  - [x] semantics (not really needed)
+  - [x] isa and grammar
   - [ ] codegen
+
+    ### Sidequest alert!
+    - [ ] call and ret instructions with print subroutine at the bottom of the file
+    - [ ] assmebler emiting object files
+    - [ ] linker
+    
+    - [ ] compiler
+    - [ ] binary gen
+
   - [ ] vm
+    - [ ] must inc ip as soon as instruction is fetched for ret and call purposes
     - [ ] implement video memory
-    - [ ] implement stdout with crossterm alt window
+    - [ ] implement print video memory slice up until the cursor
     - [ ] implement instructions
 
+- [ ] split compiler into compiler, assembler and linker
+- [ ] rewrite hardcoded print subroutine in assembly
 - [ ] unit type
 - [ ] semicolon/newline split like rust
 - [ ] fix the typing issues with if expressions

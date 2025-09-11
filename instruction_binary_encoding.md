@@ -31,6 +31,8 @@ Instruction Set (Current)
 | 0x21   | JLT8     | rel8     | jump if less-than            |
 | 0x22   | JGT8     | rel8     | jump if greater-than         |
 | 0x23   | JEQ8     | rel8     | jump if equal                |
+| 0x24   | CALL     | addr16   | pushes ip into stack and jumps to addr         |
+| 0x25   | RET      | rel8     | pops and places into ip                |
 
 ---
 
@@ -66,3 +68,12 @@ Instruction Set (Current)
 | 0x50   | MOV      | rd, rs   | rd = rs                        |
 | 0x51   | PUSHR    | rs       | push contents of rs onto stack |
 | 0x52   | POPR     | rd       | pop stack top into rd          |
+
+---
+
+### **0x6\_ - Video Ops**
+
+| Opcode | Mnemonic | Operands | Notes                                    |
+| ------ | -------- | -------- | ---------------------------------------- |
+| 0x60   | PRINT    | -        | pop from stack and write byte at cursor  |
+| 0x61   | MVCUR    | rel8     | move cursor relative to current position |
