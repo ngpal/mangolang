@@ -51,15 +51,15 @@
   - [x] type checker
   - [x] semantics (not really needed)
   - [x] isa and grammar
-  - [ ] codegen
+  - [x] codegen
 
     ### Sidequest alert!
-    - [ ] call and ret instructions with print subroutine at the bottom of the file
-    - [ ] assmebler emiting object files
-    - [ ] linker
+    - [x] call and ret instructions with print subroutine at the bottom of the file
+    - [x] assmebler emiting object files
+    - [x] linker
     
-    - [ ] compiler
-    - [ ] binary gen
+    - [x] compiler
+    - [x] binary gen
 
   - [ ] vm
     - [ ] must inc ip as soon as instruction is fetched for ret and call purposes
