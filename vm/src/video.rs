@@ -7,7 +7,7 @@ use crossterm::{
 };
 use std::io::{self, Write, stdout};
 
-use crate::vm::{INFO_HEIGHT, VIDEO_BASE, VIDEO_HEIGHT, VIDEO_WIDTH, Vm};
+use crate::core::{INFO_HEIGHT, VIDEO_BASE, VIDEO_HEIGHT, VIDEO_WIDTH, Vm};
 
 pub struct VideoMemory;
 

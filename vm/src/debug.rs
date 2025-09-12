@@ -7,7 +7,7 @@ use crossterm::{
 };
 use std::io::{self, Write, stdout};
 
-use crate::vm::{VIDEO_BASE, VIDEO_HEIGHT, VIDEO_WIDTH, Vm};
+use crate::core::{VIDEO_BASE, VIDEO_HEIGHT, VIDEO_WIDTH, Vm};
 
 pub struct Debugger<'a> {
     vm: &'a mut Vm,

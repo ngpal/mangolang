@@ -1,12 +1,12 @@
-use clap::Parser;
-use std::{fs, process};
-
-use crate::{debug::Debugger, vm::Vm};
+mod core;
 mod debug;
 mod error;
 mod instr;
 mod video;
-mod vm;
+
+use crate::{core::Vm, debug::Debugger};
+use clap::Parser;
+use std::{fs, process};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
