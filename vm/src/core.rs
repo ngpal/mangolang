@@ -378,16 +378,6 @@ impl Vm {
         Ok(false)
     }
 
-    // Execute instructions
-    pub fn exec(&mut self) -> RuntimeResult<()> {
-        let mut halt = false;
-        while !halt && (self.ip as usize) < self.program_end {
-            halt = self.exec_instruction()?;
-        }
-
-        Ok(())
-    }
-
     pub fn top_word(&self) -> u16 {
         let sp = self.registers.get_sp() as usize;
         u16::from_le_bytes([self.memory[sp], self.memory[sp + 1]])
