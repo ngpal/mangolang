@@ -70,6 +70,8 @@
 
 # 12-09-2025
 - [x] debugger upgrade
+
+# 13-09-2025
 - [ ] split compiler into compiler, assembler and linker
 - [ ] rewrite hardcoded print subroutine in assembly
 - [ ] unit type
