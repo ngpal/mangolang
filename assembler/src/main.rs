@@ -1,6 +1,6 @@
 use clap::{Parser, command};
 use computils::{
-    error::{CompilerError, CompilerResult},
+    error::{AssemblerError, AssemblerResult},
     instr::Instr,
 };
 use std::{collections::HashMap, fs, io};
@@ -93,14 +93,67 @@ impl Object {
     }
 }
 
-// parse assembly text into symbolic instruction vector
-pub fn parse_assembly<'a>(input: &str) -> CompilerResult<'a, Vec<Instr>> {
+fn parse_reg(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
+    let tok = token.ok_or_else(|| AssemblerError {
+        msg: "missing register operand".into(),
+        line: Some(lineno + 1),
+    })?;
+    match tok.to_ascii_lowercase().as_str() {
+        "r0" => Ok(0),
+        "r1" => Ok(1),
+        "r2" => Ok(2),
+        "r3" => Ok(3),
+        "r4" | "sp" => Ok(4),
+        "r5" | "fp" => Ok(5),
+        _ => Err(AssemblerError {
+            msg: format!("invalid register `{}`", tok),
+            line: Some(lineno + 1),
+        }),
+    }
+}
+
+fn parse_imm8(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
+    token
+        .ok_or_else(|| AssemblerError {
+            msg: "missing 8-bit immediate".into(),
+            line: Some(lineno + 1),
+        })?
+        .parse::<u8>()
+        .map_err(|_| AssemblerError {
+            msg: "invalid 8-bit immediate".into(),
+            line: Some(lineno + 1),
+        })
+}
+
+fn parse_imm16(token: Option<&str>, lineno: usize) -> AssemblerResult<u16> {
+    token
+        .ok_or_else(|| AssemblerError {
+            msg: "missing 16-bit immediate".into(),
+            line: Some(lineno + 1),
+        })?
+        .parse::<u16>()
+        .map_err(|_| AssemblerError {
+            msg: "invalid 16-bit immediate".into(),
+            line: Some(lineno + 1),
+        })
+}
+
+fn parse_label(token: Option<&str>, lineno: usize) -> AssemblerResult<String> {
+    Ok(token
+        .ok_or_else(|| AssemblerError {
+            msg: "missing label operand".into(),
+            line: Some(lineno + 1),
+        })?
+        .to_string())
+}
+
+pub fn parse_assembly(input: &str) -> AssemblerResult<Vec<Instr>> {
     let mut instrs = Vec::new();
 
     for (lineno, line) in input.lines().enumerate() {
         let line = line.trim();
 
-        // skip blank lines and semicolon comments
+        // skip blank lines and comments
         if line.is_empty() || line.starts_with(';') {
             continue;
         }
@@ -111,98 +164,65 @@ pub fn parse_assembly<'a>(input: &str) -> CompilerResult<'a, Vec<Instr>> {
             continue;
         }
 
+        // split into mnemonic + operands
         let mut parts = line.split_whitespace();
-        let mnemonic = parts.next().unwrap().to_lowercase();
-        let operand = parts.next();
+        let mnemonic = parts.next().unwrap().to_ascii_lowercase();
 
         let instr = match mnemonic.as_str() {
-            // no-operand
+            // stack & control
+            "push16" => Instr::Push(parse_imm16(parts.next(), lineno)?),
             "halt" => Instr::Halt,
-            "loadp" => Instr::Loadp,
-            "storep" => Instr::Storep,
-            "cmp" => Instr::Cmp,
             "ret" => Instr::Ret,
 
-            // immediates
-            "push" => {
-                let val: u16 = operand
-                    .ok_or_else(|| CompilerError::Assembler {
-                        msg: "missing operand for push".into(),
-                        line: Some(lineno + 1),
-                    })?
-                    .parse()
-                    .map_err(|_| CompilerError::Assembler {
-                        msg: "invalid operand for push".into(),
-                        line: Some(lineno + 1),
-                    })?;
-                Instr::Push(val)
+            // memory
+            "load8" => Instr::Load(parse_imm8(parts.next(), lineno)?),
+            "store8" => Instr::Store(parse_imm8(parts.next(), lineno)?),
+            "loadp" => Instr::Loadp,
+            "storep" => Instr::Storep,
+
+            // jumps & calls (label forms)
+            "jmp8" => Instr::JmpLbl(parse_label(parts.next(), lineno)?),
+            "jlt8" => Instr::JltLbl(parse_label(parts.next(), lineno)?),
+            "jgt8" => Instr::JgtLbl(parse_label(parts.next(), lineno)?),
+            "jeq8" => Instr::JeqLbl(parse_label(parts.next(), lineno)?),
+            "call" => Instr::CallLbl(parse_label(parts.next(), lineno)?),
+
+            // integer arithmetic
+            "add" => Instr::Add,
+            "sub" => Instr::Sub,
+            "mul" => Instr::Mul,
+            "div" => Instr::Div,
+            "neg" => Instr::Neg,
+            "cmp" => Instr::Cmp,
+
+            // bitwise
+            "not" => Instr::Not,
+            "and" => Instr::And,
+            "or" => Instr::Or,
+            "xor" => Instr::Xor,
+            "shft" => Instr::Shft,
+
+            // register ops
+            "mov" => {
+                let rd = parse_reg(parts.next(), lineno)?;
+                let rs = parse_reg(parts.next(), lineno)?;
+                Instr::Mov(rd, rs)
             }
-            "load" => {
-                let reg: u8 = operand
-                    .ok_or_else(|| CompilerError::Assembler {
-                        msg: "missing operand for load".into(),
-                        line: Some(lineno + 1),
-                    })?
-                    .parse()
-                    .map_err(|_| CompilerError::Assembler {
-                        msg: "invalid operand for load".into(),
-                        line: Some(lineno + 1),
-                    })?;
-                Instr::Load(reg)
+            "pushr" => {
+                let rs = parse_reg(parts.next(), lineno)?;
+                Instr::Pushr(rs)
             }
-            "store" => {
-                let reg: u8 = operand
-                    .ok_or_else(|| CompilerError::Assembler {
-                        msg: "missing operand for store".into(),
-                        line: Some(lineno + 1),
-                    })?
-                    .parse()
-                    .map_err(|_| CompilerError::Assembler {
-                        msg: "invalid operand for store".into(),
-                        line: Some(lineno + 1),
-                    })?;
-                Instr::Store(reg)
+            "popr" => {
+                let rd = parse_reg(parts.next(), lineno)?;
+                Instr::Popr(rd)
             }
 
-            // control flow (label form)
-            "jmp" => {
-                let target = operand.ok_or_else(|| CompilerError::Assembler {
-                    msg: "missing label for jmp".into(),
-                    line: Some(lineno + 1),
-                })?;
-                Instr::JmpLbl(target.to_string())
-            }
-            "jlt" => {
-                let target = operand.ok_or_else(|| CompilerError::Assembler {
-                    msg: "missing label for jlt".into(),
-                    line: Some(lineno + 1),
-                })?;
-                Instr::JltLbl(target.to_string())
-            }
-            "jgt" => {
-                let target = operand.ok_or_else(|| CompilerError::Assembler {
-                    msg: "missing label for jgt".into(),
-                    line: Some(lineno + 1),
-                })?;
-                Instr::JgtLbl(target.to_string())
-            }
-            "jeq" => {
-                let target = operand.ok_or_else(|| CompilerError::Assembler {
-                    msg: "missing label for jeq".into(),
-                    line: Some(lineno + 1),
-                })?;
-                Instr::JeqLbl(target.to_string())
-            }
-            "call" => {
-                let target = operand.ok_or_else(|| CompilerError::Assembler {
-                    msg: "missing label for call".into(),
-                    line: Some(lineno + 1),
-                })?;
-                Instr::CallLbl(target.to_string())
-            }
+            // video
+            "print" => Instr::Print,
+            "mvcur" => Instr::MvCur(parse_imm8(parts.next(), lineno)? as i8),
 
             _ => {
-                return Err(CompilerError::Assembler {
+                return Err(AssemblerError {
                     msg: format!("unknown mnemonic `{}`", mnemonic),
                     line: Some(lineno + 1),
                 });
@@ -278,7 +298,7 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
     code
 }
 
-pub fn assemble_object(instrs: &Vec<Instr>) -> CompilerResult<Vec<u8>> {
+pub fn assemble_object(instrs: &Vec<Instr>) -> AssemblerResult<Vec<u8>> {
     let mut out_instr = Vec::new();
     let mut byte_pos: u16 = 0;
     let mut symbols = HashMap::new();
@@ -287,8 +307,9 @@ pub fn assemble_object(instrs: &Vec<Instr>) -> CompilerResult<Vec<u8>> {
     for instr in instrs {
         match instr {
             Instr::Lbl(name) => {
-                if let Some(_) = symbols.insert(name, byte_pos) {
-                    return Err(CompilerError::Assembler {
+                let rec = symbols.insert(name, byte_pos);
+                if rec.is_some() && rec.unwrap() != 0xFFFF {
+                    return Err(AssemblerError {
                         msg: format!("symbol {} is defined multiple times", name),
                         line: None,
                     });
@@ -301,7 +322,9 @@ pub fn assemble_object(instrs: &Vec<Instr>) -> CompilerResult<Vec<u8>> {
             | Instr::JeqLbl(name) => {
                 let target_addr = match symbols.get(name) {
                     // Back reference
-                    Some(addr) => (*addr as isize - byte_pos as isize) as i8,
+                    Some(addr) => {
+                        (*addr as isize - (byte_pos as isize + instr.byte_len() as isize)) as i8
+                    }
                     // Forward reference
                     None => {
                         symbols.insert(name, 0xFFFF);
@@ -330,15 +353,14 @@ pub fn assemble_object(instrs: &Vec<Instr>) -> CompilerResult<Vec<u8>> {
                     Some(addr) => addr,
                     None => {
                         symbols.insert(name, 0xFFFF);
-                        relocs.push(Reloc {
-                            offset: byte_pos + 1,
-                            sym_name: name.to_string(),
-                            kind: RelocType::Abs16,
-                        });
                         &0xFFFF
                     }
                 };
-
+                relocs.push(Reloc {
+                    offset: byte_pos + 1,
+                    sym_name: name.to_string(),
+                    kind: RelocType::Abs16,
+                });
                 out_instr.push(Instr::Call(*target_addr));
             }
 

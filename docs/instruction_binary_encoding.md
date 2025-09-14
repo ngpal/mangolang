@@ -32,7 +32,7 @@ Instruction Set (Current)
 | 0x22   | JGT8     | rel8     | jump if greater-than         |
 | 0x23   | JEQ8     | rel8     | jump if equal                |
 | 0x24   | CALL     | addr16   | pushes ip into stack and jumps to addr         |
-| 0x25   | RET      | rel8     | pops and places into ip                |
+| 0x25   | RET      | -        | pops and places into ip                |
 
 ---
 

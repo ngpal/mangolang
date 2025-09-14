@@ -1,0 +1,56 @@
+print:
+pushr r0
+push16 0
+cmp
+jeq8 print_zero
+
+; extract digits
+loop:
+pushr r0
+pushr r0
+push16 10
+div
+popr r0
+pushr r0
+push16 10
+mul
+sub
+popr r1
+pushr r1
+push16 48
+add
+pushr r2
+push16 1
+add
+popr r2
+
+; check if quotiend != 0, else break
+pushr r0
+push16 0
+cmp
+jeq8 print_digits
+jmp8 loop
+
+; print digits from the stack
+print_digits:
+pushr r2
+push16 1
+sub
+popr r2
+print
+pushr r2
+push16 0
+cmp
+jeq8 end
+jmp8 print_digits
+
+; handle zero
+print_zero:
+push16 48
+print
+
+; end
+end:
+push16 10
+print
+ret

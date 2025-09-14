@@ -1,127 +1,127 @@
 use clap::{Parser, command};
-use computils::error::{CompilerError, CompilerResult};
+use computils::error::{LinkerError, LinkerResult};
 use std::{collections::HashMap, fs, io};
 
 const OBJ_FILE_VERSION: u16 = 1;
 const VERSION_OFST: usize = 4;
-const INSTR_LEN_OFST: usize = 7;
-const SYM_LEN_OFST: usize = 9;
-const RELOC_LEN_OFST: usize = 11;
-const INSTR_BEGIN_OFST: usize = 13;
+const INSTR_LEN_OFST: usize = 6;
+const SYM_LEN_OFST: usize = 8;
+const RELOC_LEN_OFST: usize = 10;
+const INSTR_BEGIN_OFST: usize = 12;
 
-fn read_u16(object: &Vec<u8>, idx: usize) -> u16 {
+fn read_u16(object: &[u8], idx: usize) -> u16 {
     object[idx] as u16 | ((object[idx + 1] as u16) << 8)
 }
 
-pub fn link_objects<'a>(objects: Vec<Vec<u8>>) -> CompilerResult<'a, Vec<u8>> {
-    let mut instrs: Vec<u8> = b"MBIN".iter().map(|&x| x).collect();
-    let mut symbols = HashMap::new();
-    let mut relocs = Vec::new();
+pub fn link_objects(objects: Vec<Vec<u8>>) -> LinkerResult<Vec<u8>> {
+    let mut instr_blob = Vec::new(); // instructions only
+    let mut symbols: HashMap<String, u16> = HashMap::new();
+    let mut relocs: Vec<(usize, String, u8)> = Vec::new();
 
-    // set up symbols
-    let mut obj_ofst = 0;
-    let mut sym_ofst = 0;
+    let mut instr_base = 0usize;
+
     for object in objects {
-        let mut obj_symbols = Vec::new();
-
-        let magic = &object[0..VERSION_OFST];
-        if magic != *b"MOBJ" {
-            return Err(CompilerError::Linker(
-                "not a valid object file (magic number not found)".to_string(),
-            ));
+        // --- validate object ---
+        if &object[0..VERSION_OFST] != b"MOBJ" {
+            return Err(LinkerError("invalid object file (missing MOBJ)".into()));
         }
-
         let version = read_u16(&object, VERSION_OFST);
         if version != OBJ_FILE_VERSION {
-            return Err(CompilerError::Linker(format!(
+            return Err(LinkerError(format!(
                 "object file version ({}) does not match supported version ({})",
                 version, OBJ_FILE_VERSION
             )));
         }
 
-        let instr_len = read_u16(&object, INSTR_LEN_OFST);
-        let sym_len = read_u16(&object, SYM_LEN_OFST);
-        let reloc_len = read_u16(&object, RELOC_LEN_OFST);
-        instrs.extend_from_slice(&object[INSTR_BEGIN_OFST..INSTR_BEGIN_OFST + instr_len as usize]);
+        let instr_len = read_u16(&object, INSTR_LEN_OFST) as usize;
+        let sym_len = read_u16(&object, SYM_LEN_OFST) as usize;
+        let reloc_len = read_u16(&object, RELOC_LEN_OFST) as usize;
 
-        // set up symbol table
-        let mut ofst = 0;
-        let cur = |ofst| INSTR_BEGIN_OFST + instr_len as usize + ofst;
-        while ofst < sym_len as usize {
+        // --- copy instructions ---
+        let obj_instrs = &object[INSTR_BEGIN_OFST..INSTR_BEGIN_OFST + instr_len];
+        instr_blob.extend_from_slice(obj_instrs);
+
+        // --- read symbols ---
+        let mut obj_symbols = Vec::new();
+        let mut ofs = 0;
+        let sym_start = INSTR_BEGIN_OFST + instr_len;
+        while ofs < sym_len {
             let mut name = String::new();
-            while object[cur(ofst)] != 0 {
-                name.push(object[cur(ofst)] as char);
-                ofst += 1;
+            while object[sym_start + ofs] != 0 {
+                name.push(object[sym_start + ofs] as char);
+                ofs += 1;
             }
-            ofst += 1; // skip \0
+            ofs += 1; // skip \0
 
-            let mut addr = read_u16(&object, cur(ofst));
-            // Resolved
+            let mut addr = read_u16(&object, sym_start + ofs);
+            ofs += 2;
             if addr != 0xFFFF {
-                addr += obj_ofst;
+                addr += instr_base as u16;
             }
-
-            ofst += 2; // skip addr
-
             obj_symbols.push((name, addr));
         }
 
-        // set up relocs table
-        ofst = 0;
-        let cur = |ofst| INSTR_BEGIN_OFST + instr_len as usize + sym_len as usize + ofst;
-        while ofst < reloc_len as usize {
-            let instr_ofst = read_u16(&object, cur(ofst));
-            ofst += 2;
-
-            let sym_idx = read_u16(&object, cur(ofst));
-            let sym_idx = sym_idx as usize + sym_ofst;
-            ofst += 2;
-
-            let kind = object[cur(ofst)];
-            ofst += 1;
-
-            relocs.push((instr_ofst, obj_symbols[sym_idx].0.clone(), kind));
+        for (name, addr) in &obj_symbols {
+            symbols.insert(name.clone(), *addr);
         }
 
-        // update global symbol table
-        for (name, addr) in obj_symbols {
-            symbols.insert(name, addr);
+        // --- read relocations ---
+        ofs = 0;
+        let reloc_start = sym_start + sym_len;
+        while ofs < reloc_len {
+            let instr_ofst = read_u16(&object, reloc_start + ofs) as usize;
+            ofs += 2;
+
+            let sym_idx = read_u16(&object, reloc_start + ofs) as usize;
+            ofs += 2;
+
+            let kind = object[reloc_start + ofs];
+            ofs += 1;
+
+            let global_instr_ofst = instr_ofst + instr_base;
+            let sym_name = obj_symbols[sym_idx].0.clone();
+            relocs.push((global_instr_ofst, sym_name, kind));
         }
 
-        sym_ofst = symbols.len();
-        obj_ofst += instr_len;
+        instr_base += instr_len;
     }
 
-    for (ofst, sym_name, kind) in relocs {
-        let addr = match symbols.get(&sym_name) {
-            Some(addr) => addr,
-            None => {
-                return Err(CompilerError::Linker(format!(
-                    "symbol {sym_name} not found"
-                )));
-            }
-        };
+    // --- apply relocations with debug check ---
+    for (instr_ofst, sym_name, kind) in &relocs {
+        let addr = symbols
+            .get(sym_name)
+            .ok_or(LinkerError(format!("unresolved symbol {}", sym_name)))?;
 
-        // unresolved symbol
         if *addr == 0xFFFF {
-            return Err(CompilerError::Linker(format!(
-                "unresolved symbol {sym_name}"
-            )));
+            return Err(LinkerError(format!("symbol {} still unresolved", sym_name)));
         }
 
-        // relative
-        if kind == 1 {
-            let rel = (*addr as isize - ofst as isize + 1) as i8;
-            instrs[ofst as usize] = rel as u8;
+        // let placeholder = instr_blob[*instr_ofst];
+        // if placeholder != 0xFF {
+        //     return Err(LinkerError(format!(
+        //         "expected placeholder 0xFF at offset {}, found 0x{:02X}",
+        //         instr_ofst, placeholder
+        //     )));
+        // }
+
+        if *kind == 1 {
+            let offset = (*addr as isize - (*instr_ofst + 1) as isize) as i8;
+            instr_blob[*instr_ofst] = offset as u8;
         } else {
-            let addr_bytes = addr.to_le_bytes();
-            instrs[ofst as usize] = addr_bytes[0];
-            instrs[ofst as usize + 1] = addr_bytes[1];
+            let bytes = addr.to_le_bytes();
+            instr_blob[*instr_ofst] = bytes[0];
+            instr_blob[*instr_ofst + 1] = bytes[1];
         }
     }
 
-    Ok(instrs)
+    // --- prepend MBIN header ---
+    let mut mbin = b"MBIN".to_vec();
+    // optionally append version or instruction length here if needed
+    mbin.extend_from_slice(&instr_blob);
+
+    Ok(mbin)
 }
+
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 struct Cli {

@@ -5,6 +5,7 @@ use crate::{
     instr::Instr,
 };
 
+const MBIN_MAGIC: &[u8; 4] = b"MBIN";
 pub const MEM_SIZE: usize = 0x10000;
 const MAX_PROGRAM_SIZE: usize = 32 * 1024; // 32KB
 
@@ -97,19 +98,31 @@ impl Vm {
     }
 
     pub fn load(&mut self, program: Vec<u8>) -> RuntimeResult<()> {
-        if program.len() > MAX_PROGRAM_SIZE {
+        if program.len() < 4 {
+            return Err(RuntimeError("Program too small".into()));
+        }
+
+        // check header
+        if &program[0..4] != MBIN_MAGIC {
+            return Err(RuntimeError(
+                "Invalid binary format (missing MBIN header)".into(),
+            ));
+        }
+
+        if program.len() - 4 > MAX_PROGRAM_SIZE {
             return Err(RuntimeError(format!(
                 "Program exceeds size of {} bytes",
                 MAX_PROGRAM_SIZE
             )));
         }
 
-        for (addr, byte) in program.iter().enumerate() {
+        // copy into memory, skipping header
+        for (addr, byte) in program[4..].iter().enumerate() {
             self.memory[addr] = *byte;
         }
 
         // address after end of program
-        self.program_end = program.len();
+        self.program_end = program.len() - 4;
 
         self.allocate_locals()?;
 
@@ -119,18 +132,20 @@ impl Vm {
     fn allocate_locals(&mut self) -> RuntimeResult<()> {
         let mut max_local = 0;
         let mut ip = 0;
+        let program_start = 0; // memory index 0 now contains first instruction
 
         while ip < self.program_end {
-            if self.memory[ip] == Instr::Store8 as u8 {
-                max_local = cmp::max(max_local, self.memory[ip + 1]);
+            let instr_byte = self.memory[program_start + ip];
+            if instr_byte == Instr::Store8 as u8 {
+                max_local = cmp::max(max_local, self.memory[program_start + ip + 1]);
             }
 
-            ip += Instr::from_u8(self.memory[ip])
+            ip += Instr::from_u8(instr_byte)
                 .ok_or(RuntimeError(format!(
                     "formatting issue on byte {} in the instructions",
                     ip
                 )))?
-                .byte_len()
+                .byte_len();
         }
 
         let space_needed = 2 * (max_local as usize + 1);
@@ -256,7 +271,7 @@ impl Vm {
                     Instr::Shft => {
                         let sh = right as i16;
 
-                        let amt = sh.abs() as usize;
+                        let amt = sh.unsigned_abs() as usize;
                         let amt = if amt >= 16 { 15 } else { amt };
 
                         let word_bits = 16;
@@ -266,12 +281,10 @@ impl Vm {
                             } else {
                                 left << (amt as u32)
                             }
+                        } else if (-sh) as u32 >= word_bits {
+                            0
                         } else {
-                            if (-sh) as u32 >= word_bits {
-                                0
-                            } else {
-                                left >> ((-sh) as u32)
-                            }
+                            left >> ((-sh) as u32)
                         };
                         (res, false)
                     }
@@ -354,14 +367,12 @@ impl Vm {
                     let row = pos / VIDEO_WIDTH;
                     let next_row = (row + 1) % VIDEO_HEIGHT;
                     pos = next_row * VIDEO_WIDTH;
-                } else {
-                    if pos < VIDEO_SIZE {
-                        self.memory[VIDEO_BASE + pos] = ch;
-                        // advance cursor
-                        pos += 1;
-                        if pos >= VIDEO_SIZE {
-                            pos = 0;
-                        }
+                } else if pos < VIDEO_SIZE {
+                    self.memory[VIDEO_BASE + pos] = ch;
+                    // advance cursor
+                    pos += 1;
+                    if pos >= VIDEO_SIZE {
+                        pos = 0;
                     }
                 }
 
@@ -387,5 +398,91 @@ impl Vm {
         self.flags.z = result == 0;
         self.flags.n = (result & 0x8000) != 0;
         self.flags.v = overflow;
+    }
+
+    pub fn disassemble(&self, start: usize, end: usize) -> Vec<String> {
+        let mut addr = start;
+        let mut output = Vec::new();
+
+        while addr < end && addr < self.program_end {
+            let byte = self.memory[addr];
+            let instr = Instr::from_u8(byte);
+            let mut size = 1;
+            let line = match instr {
+                Some(Instr::Push16) => {
+                    if addr + 2 < self.memory.len() {
+                        let imm =
+                            u16::from_le_bytes([self.memory[addr + 1], self.memory[addr + 2]]);
+                        size = 3;
+                        format!("0x{:04X}: PUSH16 {}", addr, imm)
+                    } else {
+                        format!("0x{:04X}: PUSH16 ???", addr)
+                    }
+                }
+                Some(Instr::Halt) => format!("0x{:04X}: HALT", addr),
+                Some(Instr::Add) => format!("0x{:04X}: ADD", addr),
+                Some(Instr::Sub) => format!("0x{:04X}: SUB", addr),
+                Some(Instr::Mul) => format!("0x{:04X}: MUL", addr),
+                Some(Instr::Div) => format!("0x{:04X}: DIV", addr),
+                Some(Instr::Cmp) => format!("0x{:04X}: CMP", addr),
+                Some(Instr::Load8) => {
+                    size = 2;
+                    format!("0x{:04X}: LOAD8 {}", addr, self.memory[addr + 1])
+                }
+                Some(Instr::Store8) => {
+                    size = 2;
+                    format!("0x{:04X}: STORE8 {}", addr, self.memory[addr + 1])
+                }
+                Some(Instr::Jmp8) => {
+                    size = 2;
+                    format!("0x{:04X}: JMP8 {}", addr, self.memory[addr + 1] as i8)
+                }
+                Some(Instr::Jlt8) => {
+                    size = 2;
+                    format!("0x{:04X}: JLT8 {}", addr, self.memory[addr + 1] as i8)
+                }
+                Some(Instr::Jgt8) => {
+                    size = 2;
+                    format!("0x{:04X}: JGT8 {}", addr, self.memory[addr + 1] as i8)
+                }
+                Some(Instr::Jeq8) => {
+                    size = 2;
+                    format!("0x{:04X}: JEQ8 {}", addr, self.memory[addr + 1] as i8)
+                }
+                Some(Instr::Call) => {
+                    size = 3;
+                    let target = u16::from_le_bytes([self.memory[addr + 1], self.memory[addr + 2]]);
+                    format!("0x{:04X}: CALL 0x{:04X}", addr, target)
+                }
+                Some(Instr::Ret) => format!("0x{:04X}: RET", addr),
+                Some(Instr::Mov) => {
+                    size = 2;
+                    let byte = self.memory[addr + 1];
+                    let rd = byte >> 4;
+                    let rs = byte & 0xF;
+                    format!("0x{:04X}: MOV r{} r{}", addr, rd, rs)
+                }
+                Some(Instr::Pushr) => {
+                    size = 2;
+                    format!("0x{:04X}: PUSHR r{}", addr, self.memory[addr + 1])
+                }
+                Some(Instr::Popr) => {
+                    size = 2;
+                    format!("0x{:04X}: POPR r{}", addr, self.memory[addr + 1])
+                }
+                Some(Instr::Print) => format!("0x{:04X}: PRINT", addr),
+                Some(Instr::MvCur) => {
+                    size = 2;
+                    format!("0x{:04X}: MVCUR {}", addr, self.memory[addr + 1] as i8)
+                }
+                Some(_) => format!("0x{:04X}: <instr 0x{:02X}>", addr, byte),
+                None => format!("0x{:04X}: DB 0x{:02X}", addr, byte),
+            };
+
+            output.push(line);
+            addr += size;
+        }
+
+        output
     }
 }

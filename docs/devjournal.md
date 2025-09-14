@@ -77,8 +77,8 @@
 
 # 14-09-2025
 - [x] split compiler into compiler, assembler and linker
-- [ ] enable vm to check for magic number in binary
-- [ ] rewrite hardcoded print subroutine in assembly
+- [x] enable vm to check for magic number in binary
+- [x] rewrite hardcoded print subroutine in assembly
 - [ ] unit type
 - [ ] semicolon/newline split like rust
 - [ ] fix the typing issues with if expressions

@@ -24,6 +24,10 @@ struct Cli {
     // Debugger
     #[arg(short = 'd', long)]
     debugger: bool,
+
+    // Disassemble without running
+    #[arg(short = 'x', long)]
+    disasm: bool,
 }
 
 fn main() {
@@ -39,6 +43,15 @@ fn main() {
         process::exit(1);
     });
 
+    // disassembly mode
+    if cli.disasm {
+        for line in vm.disassemble(0, vm.program_end) {
+            println!("{}", line);
+        }
+        process::exit(0);
+    }
+
+    // debugger mode
     if cli.debugger {
         println!("Entering debugger");
         if let Err(err) = Debugger::new(&mut vm).run() {

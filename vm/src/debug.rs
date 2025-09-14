@@ -39,7 +39,7 @@ impl<'a> Debugger<'a> {
 
                 // draw disassembly at (WIDTH+4, 0)
                 execute!(stdout, MoveTo((VIDEO_WIDTH + 4) as u16, 0))?;
-                self.draw_disassembly(&mut stdout)?;
+                self.draw_disassembly(&mut stdout, VIDEO_HEIGHT)?;
 
                 execute!(stdout, MoveDown(2))?;
                 self.draw_memory(&mut stdout, self.mem_offset, 8)?; // first 8 rows of memory
@@ -63,38 +63,38 @@ impl<'a> Debugger<'a> {
                 }
 
                 // poll keyboard
-                if event::poll(std::time::Duration::from_millis(50))? {
-                    if let Event::Key(key) = event::read()? {
-                        match key.code {
-                            KeyCode::Char('q') => break Ok(()),
-                            KeyCode::Char('s') => {
-                                // single step
-                                if !halted {
-                                    match self.vm.exec_instruction() {
-                                        Ok(true) => {
-                                            info_lines.push("program halted".into());
-                                            halted = true;
-                                        }
-                                        Ok(false) => {}
-                                        Err(e) => info_lines.push(format!("runtime error: {}", e)),
+                if event::poll(std::time::Duration::from_millis(50))?
+                    && let Event::Key(key) = event::read()?
+                {
+                    match key.code {
+                        KeyCode::Char('q') => break Ok(()),
+                        KeyCode::Char('s') => {
+                            // single step
+                            if !halted {
+                                match self.vm.exec_instruction() {
+                                    Ok(true) => {
+                                        info_lines.push("program halted".into());
+                                        halted = true;
                                     }
+                                    Ok(false) => {}
+                                    Err(e) => info_lines.push(format!("runtime error: {}", e)),
                                 }
                             }
-                            KeyCode::Char('c') => running = true, // continue
-                            KeyCode::Char('+') => {
-                                if self.mem_offset + 0x80 < self.vm.memory.len() {
-                                    self.mem_offset += 0x80; // scroll down 8 rows (8*16=0x80 bytes)
-                                }
-                            }
-                            KeyCode::Char('-') => {
-                                if self.mem_offset >= 0x80 {
-                                    self.mem_offset -= 0x80; // scroll up
-                                } else {
-                                    self.mem_offset = 0;
-                                }
-                            }
-                            _ => {}
                         }
+                        KeyCode::Char('c') => running = true, // continue
+                        KeyCode::Char('+') => {
+                            if self.mem_offset + 0x80 < self.vm.memory.len() {
+                                self.mem_offset += 0x80; // scroll down 8 rows (8*16=0x80 bytes)
+                            }
+                        }
+                        KeyCode::Char('-') => {
+                            if self.mem_offset >= 0x80 {
+                                self.mem_offset -= 0x80; // scroll up
+                            } else {
+                                self.mem_offset = 0;
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -181,9 +181,8 @@ impl<'a> Debugger<'a> {
         Ok(())
     }
 
-    fn draw_disassembly(&mut self, stdout: &mut std::io::Stdout) -> io::Result<()> {
+    fn draw_disassembly(&mut self, stdout: &mut std::io::Stdout, lines: usize) -> io::Result<()> {
         let mut addr = self.vm.ip as usize;
-        let lines = 10; // number of instructions to display
 
         execute!(
             stdout,
@@ -266,7 +265,7 @@ impl<'a> Debugger<'a> {
             }
             0x25 => {
                 size = 2;
-                format!("RET")
+                "RET".to_string()
             } // ignore rel8 for simplicity
             0x30 => "ADD".into(),
             0x31 => "SUB".into(),

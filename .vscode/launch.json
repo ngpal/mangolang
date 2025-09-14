@@ -57,7 +57,7 @@
                     "kind": "bin"
                 }
             },
-            "args": ["--", "out.mbin"],
+            "args": ["--", "test.mbin"],
             "cwd": "${workspaceFolder}"
         },
         {
