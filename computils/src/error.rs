@@ -1,40 +1,44 @@
-use crate::{
-    lexer::{Slice, Token},
-    semantic::type_check::Type,
-};
+#[cfg(feature = "compiler")]
+use crate::lexer::{Slice, Token};
+#[cfg(feature = "compiler")]
+use crate::semantic::Type;
+
 use std::{error::Error, fmt::Display};
 
 #[derive(Debug)]
 pub enum CompilerError<'ip> {
-    UnknownChar {
-        ch: char,
-        slice: Slice<'ip>,
-    },
+    #[cfg(feature = "compiler")]
+    UnknownChar { ch: char, slice: Slice<'ip> },
+    #[cfg(feature = "compiler")]
     UnexpectedToken {
         got: Token<'ip>,
         expected: &'static str,
     },
+    #[cfg(feature = "compiler")]
     UnexpectedType {
         got: Type,
         expected: String,
         slice: Slice<'ip>,
     },
+    #[cfg(feature = "compiler")]
     UnexpectedEof,
+    #[cfg(feature = "compiler")]
     OpTypeError {
         op: Token<'ip>,
         lhs: Option<Token<'ip>>,
         rhs: Token<'ip>,
     },
+
+    #[cfg(feature = "compiler")]
     TypeError(String, Slice<'ip>),
+    #[cfg(feature = "compiler")]
     UndefinedIdentifier(&'ip Token<'ip>),
-    Semantic {
-        err: String,
-        slice: Slice<'ip>,
-    },
-    Assembler {
-        msg: String,
-        line: Option<usize>,
-    },
+    #[cfg(feature = "compiler")]
+    Semantic { err: String, slice: Slice<'ip> },
+
+    #[cfg(feature = "assembler")]
+    Assembler { msg: String, line: Option<usize> },
+    #[cfg(feature = "linker")]
     Linker(String),
 }
 
@@ -108,9 +112,11 @@ impl<'ip> Display for CompilerError<'ip> {
             Self::Semantic { err, slice } => {
                 write!(f, "Semantic Error at {}: {}", slice.get_row_col(), err)
             }
+            #[cfg(feature = "linker")]
             Self::Linker(err) => {
                 write!(f, "Linker Error: {}", err)
             }
+            #[cfg(feature = "assembler")]
             CompilerError::Assembler { msg, line } => match line {
                 Some(l) => {
                     write!(f, "Assembler Error at line {}: {}", l, msg)

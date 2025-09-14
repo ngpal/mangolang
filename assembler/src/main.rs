@@ -1,8 +1,9 @@
-use crate::{
-    codegen::instr::Instr,
+use clap::{Parser, command};
+use computils::{
     error::{CompilerError, CompilerResult},
+    instr::Instr,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, fs, io};
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -204,7 +205,7 @@ pub fn parse_assembly<'a>(input: &str) -> CompilerResult<'a, Vec<Instr>> {
                 return Err(CompilerError::Assembler {
                     msg: format!("unknown mnemonic `{}`", mnemonic),
                     line: Some(lineno + 1),
-                })
+                });
             }
         };
 
@@ -230,10 +231,10 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             Instr::Storep => vec![0x13],
 
             // Jumps and Branches
-            Instr::Jmp(displ) => vec![0x20, (*displ as u8)],
-            Instr::Jlt(displ) => vec![0x21, (*displ as u8)],
-            Instr::Jgt(displ) => vec![0x22, (*displ as u8)],
-            Instr::Jeq(displ) => vec![0x23, (*displ as u8)],
+            Instr::Jmp(displ) => vec![0x20, *displ as u8],
+            Instr::Jlt(displ) => vec![0x21, *displ as u8],
+            Instr::Jgt(displ) => vec![0x22, *displ as u8],
+            Instr::Jeq(displ) => vec![0x23, *displ as u8],
             Instr::Call(addr) => vec![0x24, (*addr & 0xFF) as u8, (*addr >> 8) as u8],
             Instr::Ret => vec![0x25],
 
@@ -355,7 +356,52 @@ pub fn assemble_object(instrs: &Vec<Instr>) -> CompilerResult<Vec<u8>> {
                 val: *val,
             })
             .collect(),
-        relocs: relocs,
+        relocs,
     }
     .to_bin())
+}
+
+#[derive(Parser, Debug)]
+#[command(author, version, about)]
+struct Cli {
+    /// input assembly file
+    #[arg(value_name = "FILE")]
+    input: String,
+
+    /// output object file
+    #[arg(short, long)]
+    output: Option<String>,
+}
+
+fn main() -> io::Result<()> {
+    let cli = Cli::parse();
+
+    let asm_code = fs::read_to_string(&cli.input)?;
+
+    // parse assembly → instrs
+    let instrs = parse_assembly(&asm_code).unwrap_or_else(|e| {
+        eprintln!("Assembly parse error: {:?}", e);
+        std::process::exit(1);
+    });
+
+    // assemble into object bytes
+    let object_bytes = assemble_object(&instrs).unwrap_or_else(|e| {
+        eprintln!("Assembly error: {:?}", e);
+        std::process::exit(1);
+    });
+
+    // decide output filename
+    let output = cli.output.unwrap_or_else(|| {
+        let stem = std::path::Path::new(&cli.input)
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
+        format!("{}.mobj", stem)
+    });
+
+    fs::write(&output, object_bytes)?;
+    println!("wrote object file to {}", output);
+
+    Ok(())
 }

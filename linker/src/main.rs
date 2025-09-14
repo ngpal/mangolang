@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-
-use crate::error::{CompilerError, CompilerResult};
+use clap::{Parser, command};
+use computils::error::{CompilerError, CompilerResult};
+use std::{collections::HashMap, fs, io};
 
 const OBJ_FILE_VERSION: u16 = 1;
 const VERSION_OFST: usize = 4;
@@ -98,7 +98,7 @@ pub fn link_objects<'a>(objects: Vec<Vec<u8>>) -> CompilerResult<'a, Vec<u8>> {
             None => {
                 return Err(CompilerError::Linker(format!(
                     "symbol {sym_name} not found"
-                )))
+                )));
             }
         };
 
@@ -121,4 +121,42 @@ pub fn link_objects<'a>(objects: Vec<Vec<u8>>) -> CompilerResult<'a, Vec<u8>> {
     }
 
     Ok(instrs)
+}
+#[derive(Parser, Debug)]
+#[command(author, version, about)]
+struct Cli {
+    /// input object files
+    #[arg(value_name = "FILES")]
+    input: Vec<String>,
+
+    /// output binary filename
+    #[arg(short, long)]
+    output: Option<String>,
+}
+
+fn main() -> io::Result<()> {
+    let cli = Cli::parse();
+
+    if cli.input.is_empty() {
+        eprintln!("linker requires at least one input object file");
+        std::process::exit(1);
+    }
+
+    let mut objects = Vec::new();
+    for path in &cli.input {
+        let buf = fs::read(path)?;
+        objects.push(buf);
+    }
+
+    let binary = link_objects(objects).unwrap_or_else(|e| {
+        eprintln!("Link error: {:?}", e);
+        std::process::exit(1);
+    });
+
+    // default output: a.out
+    let output = cli.output.unwrap_or_else(|| "a.out".to_string());
+    fs::write(&output, binary)?;
+    println!("wrote binary to {}", output);
+
+    Ok(())
 }

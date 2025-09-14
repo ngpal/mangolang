@@ -1,0 +1,13 @@
+[package]
+name = "computils"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+error = []
+instr = []
+compiler = ["error"]
+assembler = ["error"]
+linker = ["error"]
+
+[dependencies]

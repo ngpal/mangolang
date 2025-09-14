@@ -72,7 +72,12 @@
 - [x] debugger upgrade
 
 # 13-09-2025
-- [ ] split compiler into compiler, assembler and linker
+- [x] refactor assembler
+- [x] refactor linker
+
+# 14-09-2025
+- [x] split compiler into compiler, assembler and linker
+- [ ] enable vm to check for magic number in binary
 - [ ] rewrite hardcoded print subroutine in assembly
 - [ ] unit type
 - [ ] semicolon/newline split like rust
