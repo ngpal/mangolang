@@ -79,11 +79,23 @@
 - [x] split compiler into compiler, assembler and linker
 - [x] enable vm to check for magic number in binary
 - [x] rewrite hardcoded print subroutine in assembly
-- [ ] unit type
+
+# 15-09-2025
+- [ ] parser rewrite
+  - ## Whats wrong with it now?
+    - Too bulky
+    - Too much repeted patterns that can be reduced
+    - Too convoluted to implement something new
+  - ## How am I going to solve it?
+    - I don't know.
+    - I love the idea of a builder with rules
+    
+- [ ] allow arbitrary stack access 
+- [ ] functions
+- [ ] require main function
 - [ ] semicolon/newline split like rust
 - [ ] fix the typing issues with if expressions
-- [ ] register based arithmetic instructions
+- [ ] register based arithmetic instructions with mod
 - [ ] arrays
 - [ ] type casting
-- [ ] functions
 - [ ] char datatype

@@ -9,6 +9,7 @@ pub enum Keyword {
     Break,
     Continue,
     Disp,
+    Fn,
 }
 
 impl Keyword {
@@ -21,6 +22,7 @@ impl Keyword {
             "continue" => Some(Self::Continue),
             "break" => Some(Self::Break),
             "disp" => Some(Self::Disp),
+            "fn" => Some(Self::Fn),
             _ => None,
         }
     }
@@ -62,6 +64,8 @@ pub enum TokenKind {
     Rparen,
     Lbrace,
     Rbrace,
+    Comma,
+    Arrow,
 }
 
 impl TokenKind {
