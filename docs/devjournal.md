@@ -81,21 +81,23 @@
 - [x] rewrite hardcoded print subroutine in assembly
 
 # 15-09-2025
-- [ ] parser rewrite
-  - ## Whats wrong with it now?
-    - Too bulky
-    - Too much repeted patterns that can be reduced
-    - Too convoluted to implement something new
-  - ## How am I going to solve it?
-    - I don't know.
-    - I love the idea of a builder with rules
-    
-- [ ] allow arbitrary stack access 
 - [ ] functions
-- [ ] require main function
+  - [ ] func def
+    - [x] parsing
+    - [x] type checking - disallow redefs
+    - [ ] semantincs
+  - [ ] func calling
+    - [ ] parsing
+    - [ ] type checking
+    - [ ] symantics
+  - [ ] instructions for stack access wrt pointer registers
+  - [ ] require main function
+  
 - [ ] semicolon/newline split like rust
+- [ ] fix slice mess
+- [ ] char datatype
+- [ ] arrays
+- [ ] Strings!
 - [ ] fix the typing issues with if expressions
 - [ ] register based arithmetic instructions with mod
-- [ ] arrays
 - [ ] type casting
-- [ ] char datatype

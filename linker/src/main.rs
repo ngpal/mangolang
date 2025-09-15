@@ -1,6 +1,9 @@
+mod error;
+
 use clap::{Parser, command};
-use computils::error::{LinkerError, LinkerResult};
 use std::{collections::HashMap, fs, io};
+
+use crate::error::{LinkerError, LinkerResult};
 
 const OBJ_FILE_VERSION: u16 = 1;
 const VERSION_OFST: usize = 4;

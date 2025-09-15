@@ -1,12 +1,11 @@
-#[cfg(feature = "compiler")]
-use crate::lexer::{Slice, Token};
-#[cfg(feature = "compiler")]
-use crate::semantic::Type;
-
 use std::{error::Error, fmt::Display};
 
+use crate::{
+    semantic::type_check::Type,
+    tokenizer::token::{Slice, Token},
+};
+
 #[derive(Debug)]
-#[cfg(feature = "compiler")]
 pub enum CompilerError<'ip> {
     UnknownChar {
         ch: char,
@@ -35,7 +34,6 @@ pub enum CompilerError<'ip> {
     },
 }
 
-#[cfg(feature = "compiler")]
 impl<'ip> Display for CompilerError<'ip> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -110,49 +108,5 @@ impl<'ip> Display for CompilerError<'ip> {
     }
 }
 
-#[cfg(feature = "compiler")]
 impl<'ip> Error for CompilerError<'ip> {}
-#[cfg(feature = "compiler")]
 pub type CompilerResult<'ip, T> = Result<T, CompilerError<'ip>>;
-
-#[cfg(feature = "assembler")]
-#[derive(Debug)]
-pub struct AssemblerError {
-    pub msg: String,
-    pub line: Option<usize>,
-}
-
-#[cfg(feature = "assembler")]
-impl Display for AssemblerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.line {
-            Some(l) => {
-                write!(f, "Assembler Error at line {}: {}", l, self.msg)
-            }
-            None => {
-                write!(f, "Assembler Error: {}", self.msg)
-            }
-        }
-    }
-}
-
-#[cfg(feature = "assembler")]
-impl Error for AssemblerError {}
-#[cfg(feature = "assembler")]
-pub type AssemblerResult<T> = Result<T, AssemblerError>;
-
-#[cfg(feature = "linker")]
-#[derive(Debug)]
-pub struct LinkerError(pub String);
-
-#[cfg(feature = "linker")]
-impl Display for LinkerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Linker Error: {}", self.0)
-    }
-}
-
-#[cfg(feature = "linker")]
-impl Error for LinkerError {}
-#[cfg(feature = "linker")]
-pub type LinkerResult<T> = Result<T, LinkerError>;

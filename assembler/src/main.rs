@@ -1,9 +1,10 @@
+mod error;
+
 use clap::{Parser, command};
-use computils::{
-    error::{AssemblerError, AssemblerResult},
-    instr::Instr,
-};
+use computils::instr::Instr;
 use std::{collections::HashMap, fs, io};
+
+use crate::error::{AssemblerError, AssemblerResult};
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
