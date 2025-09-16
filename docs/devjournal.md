@@ -82,21 +82,37 @@
 
 # 15-09-2025
 - [ ] functions
-  - [ ] func def
+  - [x] func def
     - [x] parsing
     - [x] type checking - disallow redefs
-    - [ ] semantincs
-  - [ ] func calling
-    - [ ] parsing
-    - [ ] type checking
-    - [ ] symantics
-  - [ ] instructions for stack access wrt pointer registers
+    - [x] semantincs
+  - [x] func calling
+    - [x] parsing
+    - [x] type checking
+    - [x] symantics
+  - [x] instructions for memory access wrt pointer registers
+  - [x] get rid of the whole slots situation actually, use stack pointer offsets
+
+  ## Major deprication in the ISA
+    - LOAD8 and STORE8 will no longer be used
+
+  ## New conundrum
+    - what if the stack is dirty when calling ret?
+    - return values, where do they go?
+
+  - [ ] codegen
+  - [ ] assembler (start symbol enforcing)
+  - [ ] linker?
+  - [ ] implement new ops on vm
   - [ ] require main function
   
+- [ ] Unit testingggggg aaaaaaaa
 - [ ] semicolon/newline split like rust
 - [ ] fix slice mess
 - [ ] char datatype
+- [ ] functions as parameters
 - [ ] arrays
+  - [ ] messes everything up bc first datatype thats not just 1 word long
 - [ ] Strings!
 - [ ] fix the typing issues with if expressions
 - [ ] register based arithmetic instructions with mod

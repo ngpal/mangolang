@@ -6,13 +6,18 @@ pub enum Instr {
     Store(u8),
     Loadp,
     Storep,
-    Cmp,
+    Loadr(u8, i8),
+    Storer(u8, i8),
+
     Jmp(i8),
     Jlt(i8),
     Jgt(i8),
     Jeq(i8),
+
     Call(u16),
     Ret,
+
+    Cmp,
     Add,
     Sub,
     Mul,
@@ -79,6 +84,8 @@ impl Instr {
             Instr::MvCur(_) => 1,
             Instr::Call(_) => 3,
             Instr::Ret => 1,
+            Instr::Loadr { .. } => 3,
+            Instr::Storer { .. } => 3,
         }
     }
 }

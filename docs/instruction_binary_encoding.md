@@ -14,24 +14,26 @@ Instruction Set (Current)
 
 ### **0x1\_ — Memory**
 
-| Opcode | Mnemonic | Operands | Notes                                            |
-| ------ | -------- | -------- | ------------------------------------------------ |
-| 0x10   | LOAD8    | addr8    | load from memory                                 |
-| 0x11   | STORE8   | addr8    | store to memory                                  |
-| 0x12   | LOADP    | -        | pops addr and pushes mem\[addr] to stack         |
-| 0x13   | STOREP   | -        | pops val and addr from stack, stores val at addr |
+| Opcode | Mnemonic | Operands   | Notes                                            |
+| ------ | -------- | ---------- | ------------------------------------------------ |
+| 0x10   | LOAD8    | addr8      | load from memory                                 |
+| 0x11   | STORE8   | addr8      | store to memory                                  |
+| 0x12   | LOADP    | -          | pops addr and pushes mem\[addr] to stack         |
+| 0x13   | STOREP   | -          | pops val and addr from stack, stores val at addr |
+| 0x14   | LOADR    | rd, rs+imm | rd = val @ [rs + imm]                            |
+| 0x14   | STORER   | rd+imm, rs | [rd + imm] = val @ rs                            |
 
 ---
 
 ### **0x2\_ — Jumps & Branches**
 
-| Opcode | Mnemonic | Operands | Notes                        |
-| ------ | -------- | -------- | ---------------------------- |
-| 0x20   | JMP8     | rel8     | jump relative (signed 8-bit) |
-| 0x21   | JLT8     | rel8     | jump if less-than            |
-| 0x22   | JGT8     | rel8     | jump if greater-than         |
-| 0x23   | JEQ8     | rel8     | jump if equal                |
-| 0x24   | CALL     | addr16   | pushes ip into stack and jumps to addr         |
+| Opcode | Mnemonic | Operands | Notes                                  |
+| ------ | -------- | -------- | -------------------------------------- |
+| 0x20   | JMP8     | rel8     | jump relative (signed 8-bit)           |
+| 0x21   | JLT8     | rel8     | jump if less-than                      |
+| 0x22   | JGT8     | rel8     | jump if greater-than                   |
+| 0x23   | JEQ8     | rel8     | jump if equal                          |
+| 0x24   | CALL     | addr16   | pushes ip into stack and jumps to addr |
 | 0x25   | RET      | -        | pops and places into ip                |
 
 ---
