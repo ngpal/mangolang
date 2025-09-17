@@ -100,8 +100,12 @@
     - what if the stack is dirty when calling ret?
     - return values, where do they go?
 
-  - [ ] codegen
-  - [ ] assembler (start symbol enforcing)
+  - [x] codegen
+  - [ ] give main function special thingies like
+    - [ ] no params
+    - [ ] no return
+    - [ ] no RET, straight to HALT
+  - [ ] assembler
   - [ ] linker?
   - [ ] implement new ops on vm
   - [ ] require main function

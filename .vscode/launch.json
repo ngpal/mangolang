@@ -4,23 +4,65 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'assembler'",
+            "cargo": {
+                "args": ["build", "--bin=assembler", "--package=assembler"],
+                "filter": {
+                    "name": "assembler",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'assembler'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=assembler",
+                    "--package=assembler"
+                ],
+                "filter": {
+                    "name": "assembler",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'computils'",
+            "cargo": {
+                "args": ["test", "--no-run", "--lib", "--package=computils"],
+                "filter": {
+                    "name": "computils",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
         {
             "type": "lldb",
             "request": "launch",
             "name": "Debug executable 'compiler'",
             "cargo": {
-                "args": [
-                    "build",
-                    "--bin=compiler",
-                    "--package=compiler"
-                ],
+                "args": ["build", "--bin=compiler", "--package=compiler"],
                 "filter": {
                     "name": "compiler",
                     "kind": "bin"
                 }
             },
-            "args": ["test.mg"],
+            "args": ["--", "out/test.mg"],
             "cwd": "${workspaceFolder}"
         },
         {
@@ -45,19 +87,48 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'vm'",
+            "name": "Debug executable 'linker'",
+            "cargo": {
+                "args": ["build", "--bin=linker", "--package=linker"],
+                "filter": {
+                    "name": "linker",
+                    "kind": "bin"
+                }
+            },
+            "args": ["--", "out/test.mg"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'linker'",
             "cargo": {
                 "args": [
-                    "build",
-                    "--bin=vm",
-                    "--package=vm"
+                    "test",
+                    "--no-run",
+                    "--bin=linker",
+                    "--package=linker"
                 ],
+                "filter": {
+                    "name": "linker",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'vm'",
+            "cargo": {
+                "args": ["build", "--bin=vm", "--package=vm"],
                 "filter": {
                     "name": "vm",
                     "kind": "bin"
                 }
             },
-            "args": ["--", "test.mbin"],
+            "args": [],
             "cwd": "${workspaceFolder}"
         },
         {
@@ -65,12 +136,7 @@
             "request": "launch",
             "name": "Debug unit tests in executable 'vm'",
             "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--bin=vm",
-                    "--package=vm"
-                ],
+                "args": ["test", "--no-run", "--bin=vm", "--package=vm"],
                 "filter": {
                     "name": "vm",
                     "kind": "bin"
