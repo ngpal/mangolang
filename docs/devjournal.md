@@ -86,6 +86,8 @@
     - [x] parsing
     - [x] type checking - disallow redefs
     - [x] semantincs
+
+# 16-09-2025
   - [x] func calling
     - [x] parsing
     - [x] type checking
@@ -101,6 +103,8 @@
     - return values, where do they go?
 
   - [x] codegen
+
+# 18-09-2025
   - [ ] give main function special thingies like
     - [ ] no params
     - [ ] no return

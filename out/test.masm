@@ -1,21 +1,23 @@
+CALL main
+HALT
 
 add:
-PUSHR r5
-MOV r5 r4
-LOADR [r5, -2]
-LOADR [r5, -4]
+PUSHR fp
+MOV fp, sp
+LOADR [fp, -2]
+LOADR [fp, -4]
 ADD
-STORER [r5, 2]
-MOV r4 r5
-POPR r5
+STORER [fp, 2]
+MOV sp, fp
+POPR fp
 RET
-MOV r4 r5
-POPR r5
+MOV sp, fp
+POPR fp
 RET
 
 main:
-PUSHR r5
-MOV r5 r4
+PUSHR fp
+MOV fp, sp
 PUSH16 0
 PUSH16 2
 PUSH16 1
@@ -26,7 +28,6 @@ POPR r0
 PUSHR r0
 POPR r0
 CALL print
-MOV r4 r5
-POPR r5
+MOV sp, fp
+POPR fp
 RET
-HALT
