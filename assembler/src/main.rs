@@ -99,7 +99,8 @@ fn parse_reg(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
         msg: "missing register operand".into(),
         line: Some(lineno + 1),
     })?;
-    match tok.to_ascii_lowercase().as_str() {
+
+    match &tok.to_ascii_lowercase().as_str()[..2] {
         "r0" => Ok(0),
         "r1" => Ok(1),
         "r2" => Ok(2),
@@ -122,6 +123,19 @@ fn parse_imm8(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
         .parse::<u8>()
         .map_err(|_| AssemblerError {
             msg: "invalid 8-bit immediate".into(),
+            line: Some(lineno + 1),
+        })
+}
+
+fn parse_imm8_signed(token: Option<&str>, lineno: usize) -> AssemblerResult<i8> {
+    token
+        .ok_or_else(|| AssemblerError {
+            msg: "missing signed 8-bit immediate".into(),
+            line: Some(lineno + 1),
+        })?
+        .parse::<i8>()
+        .map_err(|_| AssemblerError {
+            msg: "invalid signed 8-bit immediate".into(),
             line: Some(lineno + 1),
         })
 }
@@ -165,28 +179,89 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Vec<Instr>> {
             continue;
         }
 
-        // split into mnemonic + operands
-        let mut parts = line.split_whitespace();
+        // split into mnemonic + rest
+        let mut parts = line.splitn(2, ' ');
         let mnemonic = parts.next().unwrap().to_ascii_lowercase();
+        let rest = parts.next().unwrap_or("").trim();
 
         let instr = match mnemonic.as_str() {
             // stack & control
-            "push16" => Instr::Push(parse_imm16(parts.next(), lineno)?),
+            "push16" => Instr::Push(parse_imm16(Some(rest), lineno)?),
             "halt" => Instr::Halt,
             "ret" => Instr::Ret,
 
             // memory
-            "load8" => Instr::Load(parse_imm8(parts.next(), lineno)?),
-            "store8" => Instr::Store(parse_imm8(parts.next(), lineno)?),
+            "load8" => Instr::Load(parse_imm8(Some(rest), lineno)?),
+            "store8" => Instr::Store(parse_imm8(Some(rest), lineno)?),
             "loadp" => Instr::Loadp,
             "storep" => Instr::Storep,
 
+            "loadr" => {
+                let inner = rest
+                    .strip_prefix('[')
+                    .and_then(|s| s.strip_suffix(']'))
+                    .ok_or_else(|| AssemblerError {
+                        msg: "expected [reg, imm]".into(),
+                        line: Some(lineno + 1),
+                    })?;
+
+                let mut inner_parts = inner.split(',');
+                let reg_str = inner_parts
+                    .next()
+                    .ok_or_else(|| AssemblerError {
+                        msg: "missing register".into(),
+                        line: Some(lineno + 1),
+                    })?
+                    .trim();
+                let imm_str = inner_parts
+                    .next()
+                    .ok_or_else(|| AssemblerError {
+                        msg: "missing offset".into(),
+                        line: Some(lineno + 1),
+                    })?
+                    .trim();
+
+                let reg = parse_reg(Some(reg_str), lineno)?;
+                let imm = parse_imm8_signed(Some(imm_str), lineno)?;
+                Instr::Loadr(reg, imm)
+            }
+
+            "storer" => {
+                let inner = rest
+                    .strip_prefix('[')
+                    .and_then(|s| s.strip_suffix(']'))
+                    .ok_or_else(|| AssemblerError {
+                        msg: "expected [reg, imm]".into(),
+                        line: Some(lineno + 1),
+                    })?;
+
+                let mut inner_parts = inner.split(',');
+                let reg_str = inner_parts
+                    .next()
+                    .ok_or_else(|| AssemblerError {
+                        msg: "missing register".into(),
+                        line: Some(lineno + 1),
+                    })?
+                    .trim();
+                let imm_str = inner_parts
+                    .next()
+                    .ok_or_else(|| AssemblerError {
+                        msg: "missing offset".into(),
+                        line: Some(lineno + 1),
+                    })?
+                    .trim();
+
+                let reg = parse_reg(Some(reg_str), lineno)?;
+                let imm = parse_imm8_signed(Some(imm_str), lineno)?;
+                Instr::Storer(reg, imm)
+            }
+
             // jumps & calls (label forms)
-            "jmp8" => Instr::JmpLbl(parse_label(parts.next(), lineno)?),
-            "jlt8" => Instr::JltLbl(parse_label(parts.next(), lineno)?),
-            "jgt8" => Instr::JgtLbl(parse_label(parts.next(), lineno)?),
-            "jeq8" => Instr::JeqLbl(parse_label(parts.next(), lineno)?),
-            "call" => Instr::CallLbl(parse_label(parts.next(), lineno)?),
+            "jmp8" => Instr::JmpLbl(parse_label(Some(rest), lineno)?),
+            "jlt8" => Instr::JltLbl(parse_label(Some(rest), lineno)?),
+            "jgt8" => Instr::JgtLbl(parse_label(Some(rest), lineno)?),
+            "jeq8" => Instr::JeqLbl(parse_label(Some(rest), lineno)?),
+            "call" => Instr::CallLbl(parse_label(Some(rest), lineno)?),
 
             // integer arithmetic
             "add" => Instr::Add,
@@ -205,22 +280,25 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Vec<Instr>> {
 
             // register ops
             "mov" => {
-                let rd = parse_reg(parts.next(), lineno)?;
-                let rs = parse_reg(parts.next(), lineno)?;
+                let mut ops = rest.split_whitespace();
+                let rd = parse_reg(ops.next(), lineno)?;
+                let rs = parse_reg(ops.next(), lineno)?;
                 Instr::Mov(rd, rs)
             }
             "pushr" => {
-                let rs = parse_reg(parts.next(), lineno)?;
+                let mut ops = rest.split_whitespace();
+                let rs = parse_reg(ops.next(), lineno)?;
                 Instr::Pushr(rs)
             }
             "popr" => {
-                let rd = parse_reg(parts.next(), lineno)?;
+                let mut ops = rest.split_whitespace();
+                let rd = parse_reg(ops.next(), lineno)?;
                 Instr::Popr(rd)
             }
 
             // video
             "print" => Instr::Print,
-            "mvcur" => Instr::MvCur(parse_imm8(parts.next(), lineno)? as i8),
+            "mvcur" => Instr::MvCur(parse_imm8(Some(rest), lineno)? as i8),
 
             _ => {
                 return Err(AssemblerError {

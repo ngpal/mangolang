@@ -6,6 +6,8 @@ pub enum Instr {
     Store8 = 0x11,
     Loadp = 0x12,
     Storep = 0x13,
+    Loadr = 0x14,
+    Storer = 0x15,
     Jmp8 = 0x20,
     Jlt8 = 0x21,
     Jgt8 = 0x22,
@@ -39,6 +41,8 @@ impl Instr {
             0x11 => Some(Instr::Store8),
             0x12 => Some(Instr::Loadp),
             0x13 => Some(Instr::Storep),
+            0x14 => Some(Instr::Loadr),
+            0x15 => Some(Instr::Storer),
             0x20 => Some(Instr::Jmp8),
             0x21 => Some(Instr::Jlt8),
             0x22 => Some(Instr::Jgt8),
@@ -95,6 +99,8 @@ impl Instr {
             Instr::Ret => 1,
             Instr::Print => 1,
             Instr::MvCur => 2,
+            Instr::Loadr => 3,
+            Instr::Storer => 3,
         }
     }
 }
