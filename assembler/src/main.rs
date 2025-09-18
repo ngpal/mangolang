@@ -241,58 +241,44 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
 
     for instr in instrs {
         code.extend(match instr {
-            // Stack and control
-            Instr::Push(val) => vec![0x01, (val & 0xFF) as u8, (val >> 8) as u8], // LE
+            Instr::Push(val) => vec![0x01, (val & 0xFF) as u8, (val >> 8) as u8],
             Instr::Halt => vec![0x0F],
-
-            // Memory
             Instr::Load(addr) => vec![0x10, *addr],
             Instr::Store(addr) => vec![0x11, *addr],
             Instr::Loadp => vec![0x12],
             Instr::Storep => vec![0x13],
-
-            // Jumps and Branches
             Instr::Jmp(displ) => vec![0x20, *displ as u8],
             Instr::Jlt(displ) => vec![0x21, *displ as u8],
             Instr::Jgt(displ) => vec![0x22, *displ as u8],
             Instr::Jeq(displ) => vec![0x23, *displ as u8],
             Instr::Call(addr) => vec![0x24, (*addr & 0xFF) as u8, (*addr >> 8) as u8],
             Instr::Ret => vec![0x25],
-
-            // Integer Arithmetic
             Instr::Add => vec![0x30],
             Instr::Sub => vec![0x31],
             Instr::Mul => vec![0x32],
             Instr::Div => vec![0x33],
             Instr::Neg => vec![0x34],
             Instr::Cmp => vec![0x35],
-
-            // Bitwise Ops
             Instr::Not => vec![0x40],
             Instr::And => vec![0x41],
             Instr::Or => vec![0x42],
             Instr::Xor => vec![0x43],
             Instr::Shft => vec![0x44],
-
-            // Register operations
             Instr::Mov(rd, rs) => vec![0x50, (rd << 4) | rs],
             Instr::Pushr(rs) => vec![0x51, *rs],
             Instr::Popr(rd) => vec![0x52, *rd],
-
-            // Video
             Instr::Print => vec![0x60],
             Instr::MvCur(ofst) => vec![0x61, *ofst as u8],
-
-            // Label/symbolic forms should not reach gen_bin as-is; if they do,
-            // it means assemble_object didn't finalize them. panic to make it obvious.
             Instr::Lbl(_)
             | Instr::CallLbl(_)
             | Instr::JmpLbl(_)
             | Instr::JltLbl(_)
             | Instr::JgtLbl(_)
             | Instr::JeqLbl(_) => {
-                panic!("gen_bin called on unresolved symbolic instruction")
+                unreachable!("gen_bin called on unresolved symbolic instruction")
             }
+            Instr::Loadr(rd, ofst) => vec![0x14, *rd, *ofst as u8],
+            Instr::Storer(rs, ofst) => vec![0x15, *rs, *ofst as u8],
         });
     }
 
