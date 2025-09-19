@@ -120,10 +120,19 @@
 # 19-09-2025
 - [x] fix bug in typechecker that ignores returns nested inside other structures
   - took out hunting for a return statement in the function. that wont be good long term
-  - 
+
+# 20-09-2025
+- [ ] handle return type problem (does not even check for returns in a function now)
+  - [ ] modify AST to carry types, set by type checker
+    - [ ] modify AST to handle slices properly and accurately
+  - [ ] split up the type checker, check_expr -> Type, check_statement -> ReturnType
+    
+- [ ] fix loop print 1-10 code bug
 - [ ] Unit testingggggg aaaaaaaa
+- [ ] implement an IR for base level optimizations
+  - [ ] constant folding
+  - [ ] dead code analysis
 - [ ] semicolon/newline split like rust
-- [ ] fix slice mess
 - [ ] char datatype
 - [ ] functions as parameters
 - [ ] arrays

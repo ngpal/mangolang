@@ -1,11 +1,11 @@
-fn get_biggest(a: int, b: int) -> int {
-	if (a > b) {
-		return a;
-	} else {
-		return b;
-	};
-}
-
 fn main() {
-	disp get_biggest(1234, 503);
+	var a = 0;
+	loop {
+		disp a;
+		a = a + 1;
+
+		if a > 10 {
+			break;
+		}
+	}
 }
