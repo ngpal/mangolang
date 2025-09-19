@@ -1,16 +1,38 @@
 CALL main
 HALT
 
-add:
+get_biggest:
 PUSHR fp
 MOV fp, sp
-LOADR [fp, -2]
-LOADR [fp, -4]
-ADD
-STORER [fp, 2]
+LOADR [fp, 8]
+LOADR [fp, 6]
+CMP
+JGT L0
+PUSH16 0
+JMP L1
+
+L0:
+PUSH16 1
+
+L1:
+PUSH16 0
+CMP
+JEQ L2
+LOADR [fp, 8]
+STORER [fp, 10]
 MOV sp, fp
 POPR fp
 RET
+JMP L3
+
+L2:
+LOADR [fp, 6]
+STORER [fp, 10]
+MOV sp, fp
+POPR fp
+RET
+
+L3:
 MOV sp, fp
 POPR fp
 RET
@@ -19,11 +41,15 @@ main:
 PUSHR fp
 MOV fp, sp
 PUSH16 0
+PUSH16 503
+PUSH16 1234
+CALL get_biggest
+PUSHR sp
 PUSH16 2
-PUSH16 1
-CALL add
-POPR r0
-POPR r0
+PUSH16 2
+MUL
+ADD
+POPR sp
 POPR r0
 PUSHR r0
 POPR r0

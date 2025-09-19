@@ -384,6 +384,19 @@ impl Vm {
                 let new_cur = (cur + offset as i16).clamp(0, (VIDEO_SIZE - 1) as i16);
                 self.write_word(CURSOR_ADDR as u16, new_cur as u16)?;
             }
+            Instr::Loadr => {
+                let reg_byte = self.fetch_byte();
+                let reg = self.registers.get_reg(reg_byte)?;
+                let offset = self.fetch_byte() as i8;
+                self.push_word(self.read_word((reg as i8 + offset) as u16))?
+            }
+            Instr::Storer => {
+                let reg_byte = self.fetch_byte();
+                let reg = self.registers.get_reg(reg_byte)?;
+                let offset = self.fetch_byte() as i8;
+                let word = self.pop_word()?;
+                self.write_word((reg as i8 + offset) as u16, word)?;
+            }
         }
 
         Ok(false)
@@ -398,6 +411,14 @@ impl Vm {
         self.flags.z = result == 0;
         self.flags.n = (result & 0x8000) != 0;
         self.flags.v = overflow;
+    }
+
+    pub fn reg_name(reg: u8) -> String {
+        match reg {
+            4 => "sp".into(),
+            5 => "fp".into(),
+            n => format!("r{}", n),
+        }
     }
 
     pub fn disassemble(&self, start: usize, end: usize) -> Vec<String> {
@@ -424,7 +445,13 @@ impl Vm {
                 Some(Instr::Sub) => format!("0x{:04X}: SUB", addr),
                 Some(Instr::Mul) => format!("0x{:04X}: MUL", addr),
                 Some(Instr::Div) => format!("0x{:04X}: DIV", addr),
+                Some(Instr::Neg) => format!("0x{:04X}: NEG", addr),
                 Some(Instr::Cmp) => format!("0x{:04X}: CMP", addr),
+                Some(Instr::Not) => format!("0x{:04X}: NOT", addr),
+                Some(Instr::And) => format!("0x{:04X}: AND", addr),
+                Some(Instr::Or) => format!("0x{:04X}: OR", addr),
+                Some(Instr::Xor) => format!("0x{:04X}: XOR", addr),
+                Some(Instr::Shft) => format!("0x{:04X}: SHFT", addr),
                 Some(Instr::Load8) => {
                     size = 2;
                     format!("0x{:04X}: LOAD8 {}", addr, self.memory[addr + 1])
@@ -432,6 +459,31 @@ impl Vm {
                 Some(Instr::Store8) => {
                     size = 2;
                     format!("0x{:04X}: STORE8 {}", addr, self.memory[addr + 1])
+                }
+                Some(Instr::Loadp) => format!("0x{:04X}: LOADP", addr),
+                Some(Instr::Storep) => format!("0x{:04X}: STOREP", addr),
+                Some(Instr::Loadr) => {
+                    size = 3;
+                    let reg = self.memory[addr + 1];
+                    let offset = self.memory[addr + 2] as i8;
+                    format!(
+                        "0x{:04X}: LOADR [{}, {}{}]",
+                        addr,
+                        Self::reg_name(reg),
+                        if offset >= 0 { "+" } else { "" },
+                        offset
+                    )
+                }
+                Some(Instr::Storer) => {
+                    size = 3;
+                    let reg = self.memory[addr + 1];
+                    let offset = self.memory[addr + 2] as i8;
+                    format!(
+                        "0x{:04X}: STORER [{}, {}]",
+                        addr,
+                        Self::reg_name(reg),
+                        offset
+                    )
                 }
                 Some(Instr::Jmp8) => {
                     size = 2;
@@ -460,7 +512,12 @@ impl Vm {
                     let byte = self.memory[addr + 1];
                     let rd = byte >> 4;
                     let rs = byte & 0xF;
-                    format!("0x{:04X}: MOV r{} r{}", addr, rd, rs)
+                    format!(
+                        "0x{:04X}: MOV {} {}",
+                        addr,
+                        Self::reg_name(rd),
+                        Self::reg_name(rs)
+                    )
                 }
                 Some(Instr::Pushr) => {
                     size = 2;
@@ -475,7 +532,7 @@ impl Vm {
                     size = 2;
                     format!("0x{:04X}: MVCUR {}", addr, self.memory[addr + 1] as i8)
                 }
-                Some(_) => format!("0x{:04X}: <instr 0x{:02X}>", addr, byte),
+                // Some(_) => format!("0x{:04X}: <instr 0x{:02X}>", addr, byte),
                 None => format!("0x{:04X}: DB 0x{:02X}", addr, byte),
             };
 

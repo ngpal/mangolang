@@ -102,18 +102,25 @@
     - what if the stack is dirty when calling ret?
     - return values, where do they go?
 
+  ## The answer?
+    - Calling convention!
+
   - [x] codegen
 
 # 18-09-2025
-  - [ ] give main function special thingies like
-    - [ ] no params
-    - [ ] no return
-    - [ ] no RET, straight to HALT
-  - [ ] assembler
-  - [ ] linker?
-  - [ ] implement new ops on vm
-  - [ ] require main function
-  
+  - [x] give main function special thingies like
+    - [x] no params
+    - [x] no return
+    - [x] no RET, straight to HALT
+  - [x] assembler
+  - [x] linker?
+  - [x] implement new ops on vm
+  - [x] require main function
+
+# 19-09-2025
+- [x] fix bug in typechecker that ignores returns nested inside other structures
+  - took out hunting for a return statement in the function. that wont be good long term
+  - 
 - [ ] Unit testingggggg aaaaaaaa
 - [ ] semicolon/newline split like rust
 - [ ] fix slice mess

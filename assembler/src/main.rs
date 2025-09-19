@@ -257,10 +257,17 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Vec<Instr>> {
             }
 
             // jumps & calls (label forms)
-            "jmp8" => Instr::JmpLbl(parse_label(Some(rest), lineno)?),
-            "jlt8" => Instr::JltLbl(parse_label(Some(rest), lineno)?),
-            "jgt8" => Instr::JgtLbl(parse_label(Some(rest), lineno)?),
-            "jeq8" => Instr::JeqLbl(parse_label(Some(rest), lineno)?),
+            "jmp" => Instr::JmpLbl(parse_label(Some(rest), lineno)?),
+            "jmp8" => Instr::Jmp(parse_imm8_signed(Some(rest), lineno)?),
+
+            "jlt" => Instr::JltLbl(parse_label(Some(rest), lineno)?),
+            "jlt8" => Instr::Jlt(parse_imm8_signed(Some(rest), lineno)?),
+
+            "jgt" => Instr::JgtLbl(parse_label(Some(rest), lineno)?),
+            "jgt8" => Instr::Jgt(parse_imm8_signed(Some(rest), lineno)?),
+
+            "jeq" => Instr::JeqLbl(parse_label(Some(rest), lineno)?),
+            "jeq8" => Instr::Jeq(parse_imm8_signed(Some(rest), lineno)?),
             "call" => Instr::CallLbl(parse_label(Some(rest), lineno)?),
 
             // integer arithmetic

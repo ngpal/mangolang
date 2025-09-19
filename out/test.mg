@@ -1,8 +1,11 @@
-fn add(a: int, b: int) -> int {
-	return a + b;
+fn get_biggest(a: int, b: int) -> int {
+	if (a > b) {
+		return a;
+	} else {
+		return b;
+	};
 }
 
 fn main() {
-	disp add(1, 2);
+	disp get_biggest(1234, 503);
 }
-

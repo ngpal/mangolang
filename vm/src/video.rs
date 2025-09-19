@@ -35,8 +35,8 @@ impl VideoMemory {
                     }
                     Ok(false) => {}
                     Err(e) => {
-                        eprintln!("runtime error: {e}");
-                        break Err(io::Error::other("vm error"));
+                        info.push(format!("runtime error: {e}"));
+                        halted = true;
                     }
                 }
             }
@@ -45,7 +45,7 @@ impl VideoMemory {
             self.render(vm, &info)?;
 
             // poll keyboard
-            if event::poll(std::time::Duration::from_millis(50))?
+            if event::poll(std::time::Duration::from_millis(10))?
                 && let Event::Key(key) = event::read()?
             {
                 if key.code == KeyCode::Enter {

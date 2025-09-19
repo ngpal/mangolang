@@ -241,6 +241,18 @@ impl<'a> Debugger<'a> {
             }
             0x12 => "LOADP".into(),
             0x13 => "STOREP".into(),
+            0x14 => {
+                size = 3;
+                let reg = self.vm.memory[addr + 1];
+                let offset = self.vm.memory[addr + 2] as i8;
+                format!("LOADR [{}, {}]", Vm::reg_name(reg), offset)
+            }
+            0x15 => {
+                size = 3;
+                let reg = self.vm.memory[addr + 1];
+                let offset = self.vm.memory[addr + 2] as i8;
+                format!("STORER [{}, {}]", Vm::reg_name(reg), offset)
+            }
             0x20 => {
                 size = 2;
                 format!("JMP8 {}", self.vm.memory[addr + 1] as i8)
@@ -284,15 +296,15 @@ impl<'a> Debugger<'a> {
                 let byte = self.vm.memory[addr + 1];
                 let rd = byte >> 4;
                 let rs = byte & 0xF;
-                format!("MOV r{} r{}", rd, rs)
+                format!("MOV {} {}", Vm::reg_name(rd), Vm::reg_name(rs))
             }
             0x51 => {
                 size = 2;
-                format!("PUSHR r{}", self.vm.memory[addr + 1])
+                format!("PUSHR {}", Vm::reg_name(self.vm.memory[addr + 1]))
             }
             0x52 => {
                 size = 2;
-                format!("POPR r{}", self.vm.memory[addr + 1])
+                format!("POPR {}", Vm::reg_name(self.vm.memory[addr + 1]))
             }
             0x60 => "PRINT".into(),
             0x61 => {
