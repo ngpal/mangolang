@@ -81,7 +81,7 @@
 - [x] rewrite hardcoded print subroutine in assembly
 
 # 15-09-2025
-- [ ] functions
+- [x] functions
   - [x] func def
     - [x] parsing
     - [x] type checking - disallow redefs
@@ -122,11 +122,15 @@
   - took out hunting for a return statement in the function. that wont be good long term
 
 # 20-09-2025
+- [[what-do-the-semantic-passes-handle-currently|check for notes on the type checker]]
+
+## Plan of action
 - [ ] handle return type problem (does not even check for returns in a function now)
   - [ ] modify AST to carry types, set by type checker
-    - [ ] modify AST to handle slices properly and accurately
+    - [x] modify AST to handle slices properly and accurately
   - [ ] split up the type checker, check_expr -> Type, check_statement -> ReturnType
-    
+  - [ ] `analyzer.rs` should handle main function checking, breaks/continues, reference validation
+
 - [ ] fix loop print 1-10 code bug
 - [ ] Unit testingggggg aaaaaaaa
 - [ ] implement an IR for base level optimizations
