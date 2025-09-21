@@ -163,12 +163,10 @@ Stack grows down (top of stack is higher memory)
 |           ...             | <- lower memory
 ```
 
-- [ ] Unit testingggggg aaaaaaaa
 - [ ] implement an IR for base level optimizations
   - [ ] implement IR
   - [ ] constant folding
   - [ ] dead code analysis
-- [ ] semicolon/newline split like rust
 - [ ] char datatype
 - [ ] functions as parameters
 - [ ] arrays
