@@ -17,15 +17,13 @@ PUSH16 1
 L1:
 PUSH16 0
 CMP
-JEQ L2
+JEQ L3
 LOADR [fp, 8]
 STORER [fp, 10]
 MOV sp, fp
 POPR fp
 RET
 JMP L3
-
-L2:
 
 L3:
 LOADR [fp, 6]
@@ -41,8 +39,32 @@ main:
 PUSHR fp
 MOV fp, sp
 PUSH16 0
-PUSH16 13
-PUSH16 12
+STORER [fp, 2]
+
+L4:
+LOADR [fp, 2]
+PUSH16 9
+CMP
+JGT L6
+PUSH16 0
+JMP L7
+
+L6:
+PUSH16 1
+
+L7:
+PUSH16 0
+CMP
+JEQ L9
+JMP L5
+JMP L9
+
+L9:
+PUSH16 0
+LOADR [fp, 2]
+PUSH16 1
+ADD
+LOADR [fp, 2]
 CALL get_biggest
 PUSHR sp
 PUSH16 2
@@ -54,6 +76,13 @@ POPR r0
 PUSHR r0
 POPR r0
 CALL print
+LOADR [fp, 2]
+PUSH16 1
+ADD
+STORER [fp, 2]
+JMP L4
+
+L5:
 MOV sp, fp
 POPR fp
 RET

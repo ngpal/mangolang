@@ -136,9 +136,10 @@
 
   - [x] modify AST to carry types, set by type checker
   - [x] `analyzer.rs` should handle main function checking, breaks/continues, reference validation
+- [x] seperating if statements and if expressions (relevant for type and return checking)
 
-- [ ] seperating if statements and if expressions
-- [ ] fix loop print 1-10 code bug
+- [x] fix loop print 1-10 code bug
+- [ ] calling convention fix in `type_check.rs` `declare_function`
 - [ ] Unit testingggggg aaaaaaaa
 - [ ] implement an IR for base level optimizations
   - [ ] implement IR
