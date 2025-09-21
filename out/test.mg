@@ -1,11 +1,11 @@
-fn main() {
-	var a = 0;
-	loop {
-		disp a;
-		a = a + 1;
+fn get_biggest(a: int, b: int) -> int {
+	if a > b {
+		return a;
+	}	
 
-		if a > 10 {
-			break;
-		}
-	}
+	return b;
+}
+
+fn main() {
+	disp get_biggest(12, 13)
 }
