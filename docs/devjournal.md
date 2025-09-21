@@ -144,6 +144,7 @@
 ## Calling convention
 Stack grows down (top of stack is higher memory)
 
+```
 +---------------------------+
 |       Optional return     | <- only if function returns non-unit
 +---------------------------+
@@ -160,6 +161,7 @@ Stack grows down (top of stack is higher memory)
 |      Local variables      | <- (fp + 0) allocated downward from fp_offset
 +---------------------------+
 |           ...             | <- lower memory
+```
 
 - [ ] Unit testingggggg aaaaaaaa
 - [ ] implement an IR for base level optimizations
