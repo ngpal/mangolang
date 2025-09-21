@@ -125,11 +125,19 @@
 - [[what-do-the-semantic-passes-handle-currently|check for notes on the type checker]]
 
 ## Plan of action
+- [x] renames slices to span
+- [x] modify AST to handle slices properly and accurately
+
+# 21-09-2025
 - [ ] handle return type problem (does not even check for returns in a function now)
-  - [ ] modify AST to carry types, set by type checker
-    - [x] modify AST to handle slices properly and accurately
+
+### The `RetStatus` Situation
+  - Allow `Maybe`s when type checking, throw errors at it in the analyzer run
+
+  - [x] modify AST to carry types, set by type checker
+  - [ ] seperating if statements and if expressions
   - [ ] split up the type checker, check_expr -> Type, check_statement -> ReturnType
-  - [ ] `analyzer.rs` should handle main function checking, breaks/continues, reference validation
+  - [ ] `analyzer.rs` should handle main function checking, breaks/continues, reference validation, checking for maybes
 
 - [ ] fix loop print 1-10 code bug
 - [ ] Unit testingggggg aaaaaaaa
