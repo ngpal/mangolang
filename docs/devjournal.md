@@ -139,7 +139,28 @@
 - [x] seperating if statements and if expressions (relevant for type and return checking)
 
 - [x] fix loop print 1-10 code bug
-- [ ] calling convention fix in `type_check.rs` `declare_function`
+- [x] calling convention fix in `type_check.rs` `declare_function`
+
+## Calling convention
+Stack grows down (top of stack is higher memory)
+
++---------------------------+
+|       Optional return     | <- only if function returns non-unit
++---------------------------+
+|        Parameter n        |
++---------------------------+
+|        Parameter ...      |
++---------------------------+
+|        Parameter 1        |
++---------------------------+
+|       Return address      | <- (fp + 4) caller’s return location
++---------------------------+
+|           Old FP          | <- (fp + 2) previous FP
++---------------------------+
+|      Local variables      | <- (fp + 0) allocated downward from fp_offset
++---------------------------+
+|           ...             | <- lower memory
+
 - [ ] Unit testingggggg aaaaaaaa
 - [ ] implement an IR for base level optimizations
   - [ ] implement IR

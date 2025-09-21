@@ -9,7 +9,7 @@ fn get_biggest(a: int, b: int) -> int {
 fn main() {
 	var a = 0;
 	loop {
-		if a > 9 {
+		if a > 22 {
 			break;
 		}
 
