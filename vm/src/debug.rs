@@ -8,7 +8,8 @@ use ratatui::{
         terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
     layout::{Constraint, Direction, Layout},
-    text::Text,
+    style::{Color, Modifier, Style},
+    text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph, Wrap},
 };
 use std::io::{self, stdout};
@@ -18,11 +19,16 @@ use crate::core::{VIDEO_BASE, VIDEO_HEIGHT, VIDEO_WIDTH, Vm};
 pub struct Debugger<'a> {
     vm: &'a mut Vm,
     mem_offset: usize,
+    speed: u64, // milliseconds per instruction
 }
 
 impl<'a> Debugger<'a> {
     pub fn new(vm: &'a mut Vm) -> Self {
-        Self { vm, mem_offset: 0 }
+        Self {
+            vm,
+            mem_offset: 0,
+            speed: 100,
+        }
     }
 
     pub fn run(&mut self) -> io::Result<()> {
@@ -82,7 +88,7 @@ impl<'a> Debugger<'a> {
                 f.render_widget(self.render_info(&info_lines), bottom_chunks[3]);
             })?;
 
-            if event::poll(std::time::Duration::from_millis(100))? {
+            if event::poll(std::time::Duration::from_millis(self.speed))? {
                 if let Event::Key(key) = event::read()? {
                     match key.code {
                         KeyCode::Char('q') => break, // quit debugger
@@ -113,6 +119,18 @@ impl<'a> Debugger<'a> {
                                 self.mem_offset -= 0x80;
                             } else {
                                 self.mem_offset = 0;
+                            }
+                        }
+                        KeyCode::Char('>') => {
+                            if self.speed > 10 {
+                                // minimum 10ms
+                                self.speed -= 10;
+                            }
+                        }
+                        KeyCode::Char('<') => {
+                            if self.speed < 2000 {
+                                // max 2s
+                                self.speed += 10;
                             }
                         }
                         _ => {}
@@ -171,29 +189,68 @@ impl<'a> Debugger<'a> {
     }
 
     fn render_disassembly(&mut self, area: ratatui::layout::Rect) -> Paragraph<'_> {
-        let mut addr = self.vm.ip as usize;
-        let mut lines = Vec::new();
-
         let max_lines = area.height.saturating_sub(2);
 
-        for _ in 0..max_lines {
+        // find 2 instructions before ip for context
+        let mut context_addrs = Vec::new();
+        let mut addr = 0;
+        let mut collected = 0;
+
+        // simple scan to find addresses of 2 instructions before IP
+        while addr < self.vm.memory.len() && collected < 2 {
+            let (_, size) = self.disasm_at(addr);
+            if addr + size > self.vm.ip as usize {
+                break;
+            }
+            context_addrs.push(addr);
+            addr += size;
+            if addr >= self.vm.ip as usize {
+                collected += 1;
+            }
+        }
+
+        // start addr is either the last 2 instructions before IP or 0
+        let start_addr = if context_addrs.len() >= 2 {
+            context_addrs[context_addrs.len() - 2]
+        } else if !context_addrs.is_empty() {
+            context_addrs[0]
+        } else {
+            self.vm.ip as usize
+        };
+
+        let mut lines: Vec<Line> = Vec::new();
+        let mut addr = start_addr;
+
+        while lines.len() < max_lines as usize && addr < self.vm.memory.len() {
             let (instr, size) = self.disasm_at(addr);
-            let marker = if addr == self.vm.ip as usize {
-                ">"
+            let is_current = addr == self.vm.ip as usize;
+
+            let style = if is_current {
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
             } else {
-                " "
+                Style::default().fg(Color::White)
             };
-            lines.push(format!("{} 0x{:04X}: {}", marker, addr, instr));
+
+            let marker = if is_current { ">" } else { " " };
+
+            let line = Line::from(vec![Span::styled(
+                format!("{} 0x{:04X}: {}", marker, addr, instr),
+                style,
+            )]);
+
+            lines.push(line);
             addr += size;
         }
 
-        Paragraph::new(Text::from(lines.join("\n")))
+        Paragraph::new(Text::from(lines))
             .block(Block::default().title("DISASSEMBLY").borders(Borders::ALL))
             .wrap(Wrap { trim: false })
     }
 
     fn render_stack(&self, area: ratatui::layout::Rect) -> Paragraph<'_> {
-        let mut lines = Vec::new();
         let mem = &self.vm.memory;
         let sp = self.vm.registers.get_sp() as usize;
         let fp = self.vm.registers.get_fp() as usize;
@@ -215,19 +272,38 @@ impl<'a> Debugger<'a> {
             0
         };
 
+        let mut lines: Vec<Line> = Vec::new();
+
         for &(addr, val) in &stack_entries[start..] {
-            let left_marker = if addr == sp { ">" } else { " " };
-            let right_marker = if addr == fp { "<" } else { " " };
-            lines.push(format!(
-                "{}[0x{:04X}] = {:04X}{}",
-                left_marker, addr, val, right_marker
-            ));
+            // determine row style
+            let row_style = if addr == sp {
+                Style::default()
+                    .bg(Color::Cyan)
+                    .fg(Color::Black)
+                    .add_modifier(Modifier::BOLD)
+            } else if addr == fp {
+                Style::default()
+                    .bg(Color::Magenta)
+                    .fg(Color::Black)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+
+            // build the line
+            let spans = vec![
+                Span::raw(" "), // left padding
+                Span::styled(format!("[0x{:04X}] = {:04X}", addr, val), row_style),
+                Span::raw(" "), // right padding
+            ];
+
+            lines.push(Line::from(spans));
         }
 
         // reverse so top of stack appears at bottom of panel
         lines.reverse();
 
-        Paragraph::new(Text::from(lines.join("\n")))
+        Paragraph::new(Text::from(lines))
             .block(Block::default().title("STACK").borders(Borders::ALL))
             .wrap(Wrap { trim: false })
     }
@@ -333,8 +409,8 @@ impl<'a> Debugger<'a> {
         (instr_str, size)
     }
 
-    fn render_memory_registers(&self) -> Paragraph<'_> {
-        let mut lines = Vec::new();
+    fn render_memory_registers(&mut self) -> Paragraph<'_> {
+        let mut lines: Vec<Line> = Vec::new();
 
         // registers
         let r = |i| self.vm.registers.get_reg(i).unwrap_or(0);
@@ -343,58 +419,116 @@ impl<'a> Debugger<'a> {
         let ip = self.vm.ip;
         let f = &self.vm.flags;
 
-        lines.push(format!(
-            "r0={:04X}  r1={:04X}  r2={:04X}  r3={:04X}",
-            r(0),
-            r(1),
-            r(2),
-            r(3)
-        ));
+        // line 1: r0-r3
+        lines.push(Line::from(vec![
+            Span::raw(format!("r0={:04X}  ", r(0))),
+            Span::raw(format!("r1={:04X}  ", r(1))),
+            Span::raw(format!("r2={:04X}  ", r(2))),
+            Span::raw(format!("r3={:04X}", r(3))),
+        ]));
 
-        lines.push(format!(
-            "SP={:04X}  FP={:04X}  IP={:04X}  Z={}  N={}  V={}",
-            sp, fp, ip, f.z, f.n, f.v
-        ));
+        // line 2: SP, FP, IP, flags
+        lines.push(Line::from(vec![
+            Span::raw("SP="),
+            Span::styled(format!("{:04X}  ", sp), Style::default().fg(Color::Cyan)),
+            Span::raw("FP="),
+            Span::styled(format!("{:04X}  ", fp), Style::default().fg(Color::Magenta)),
+            Span::raw("IP="),
+            Span::styled(
+                format!("{:04X}  ", ip),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw("Z="),
+            Span::styled(
+                if f.z { "1  " } else { "0  " },
+                Style::default().fg(if f.z { Color::Green } else { Color::Red }),
+            ),
+            Span::raw("N="),
+            Span::styled(
+                if f.n { "1  " } else { "0  " },
+                Style::default().fg(if f.n { Color::Green } else { Color::Red }),
+            ),
+            Span::raw("V="),
+            Span::styled(
+                if f.v { "1" } else { "0" },
+                Style::default().fg(if f.v { Color::Green } else { Color::Red }),
+            ),
+        ]));
 
-        lines.push(String::new());
+        lines.push(Line::from("")); // empty line
+
+        // get instruction range
+        let (_, instr_size) = self.disasm_at(ip as usize);
+        let instr_start = ip as usize;
+        let instr_end = instr_start + instr_size;
 
         // memory hex dump
         let mem = &self.vm.memory;
-        let rows = 8;
+        let rows = 16;
         for r in 0..rows {
             let addr = self.mem_offset + r * 16;
             if addr >= mem.len() {
                 break;
             }
 
-            let hex_bytes: Vec<String> = mem[addr..(addr + 16).min(mem.len())]
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect();
+            let mut line_spans: Vec<Span> = Vec::new();
+            line_spans.push(Span::raw(format!("{:04X}: ", addr)));
 
-            let ascii: String = mem[addr..(addr + 16).min(mem.len())]
-                .iter()
-                .map(|b| {
-                    if b.is_ascii_graphic() || *b == b' ' {
-                        *b as char
-                    } else {
-                        '.'
-                    }
-                })
-                .collect();
+            // hex bytes
+            for i in 0..16 {
+                let byte_addr = addr + i;
+                if byte_addr >= mem.len() {
+                    break;
+                }
 
-            lines.push(format!(
-                "{:04X}: {:<48}  {}",
-                addr,
-                hex_bytes.join(" "),
-                ascii
-            ));
+                let style = if byte_addr >= instr_start && byte_addr < instr_end {
+                    Style::default()
+                        .fg(Color::Black)
+                        .bg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::White)
+                };
+
+                line_spans.push(Span::styled(format!("{:02X} ", mem[byte_addr]), style));
+            }
+
+            line_spans.push(Span::raw("  "));
+
+            // ascii
+            for i in 0..16 {
+                let byte_addr = addr + i;
+                if byte_addr >= mem.len() {
+                    break;
+                }
+
+                let ch = if mem[byte_addr].is_ascii_graphic() || mem[byte_addr] == b' ' {
+                    mem[byte_addr] as char
+                } else {
+                    '.'
+                };
+
+                let style = if byte_addr >= instr_start && byte_addr < instr_end {
+                    Style::default()
+                        .fg(Color::Black)
+                        .bg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                };
+
+                line_spans.push(Span::styled(ch.to_string(), style));
+            }
+
+            lines.push(Line::from(line_spans));
         }
 
-        Paragraph::new(Text::from(lines.join("\n")))
+        Paragraph::new(Text::from(lines))
             .block(
                 Block::default()
-                    .title("MEMORY+REGISTERS")
+                    .title("MEMORY + REGISTERS")
                     .borders(Borders::ALL),
             )
             .wrap(Wrap { trim: false })
@@ -406,21 +540,42 @@ impl<'a> Debugger<'a> {
             "q - quit".into(),
             "s - step".into(),
             "c - continue".into(),
-            "s - stop".into(),
+            "x - stop".into(),
             "+ - scroll mem down".into(),
             "- - scroll mem up".into(),
+            "> - faster".into(),
+            "< - slower".into(),
         ];
 
-        let mut display_lines = info_lines
+        // display last 15 info messages
+        let mut display_lines: Vec<Line> = info_lines
             .iter()
             .rev()
             .take(15)
             .rev()
-            .cloned()
-            .collect::<Vec<_>>();
-        display_lines.extend(shortcuts);
+            .map(|msg| Line::from(Span::raw(msg.clone())))
+            .collect();
 
-        Paragraph::new(display_lines.join("\n"))
+        // add shortcuts
+        for sc in shortcuts {
+            display_lines.push(Line::from(Span::styled(
+                sc,
+                Style::default().fg(Color::Blue),
+            )));
+        }
+
+        // show current speed at the top
+        display_lines.insert(
+            0,
+            Line::from(Span::styled(
+                format!("SPEED: {}ms", self.speed),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )),
+        );
+
+        Paragraph::new(Text::from(display_lines))
             .block(
                 Block::default()
                     .title("INFO / MESSAGES")
