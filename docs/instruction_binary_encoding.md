@@ -20,8 +20,8 @@ Instruction Set (Current)
 | 0x11   | STORE8   | addr8    | store to memory                                  |
 | 0x12   | LOADP    | -        | pops addr and pushes mem\[addr] to stack         |
 | 0x13   | STOREP   | -        | pops val and addr from stack, stores val at addr |
-| 0x14   | LOADR    |  rs+imm | push val @ [rs + imm] |
-| 0x15   | STORER    | rd+imm | [rd + imm] = pop |
+| 0x14   | LOADR    | rs+imm   | push val @ [rs + imm] |
+| 0x15   | STORER   | rd+imm   | [rd + imm] = pop |
 
 ---
 

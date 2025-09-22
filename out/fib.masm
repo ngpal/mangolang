@@ -1,0 +1,100 @@
+CALL main
+HALT
+
+fib:
+PUSHR fp
+MOV fp, sp
+PUSH16 0
+PUSHR sp
+ADD
+POPR sp
+LOADR [fp, 6]
+PUSH16 1
+CMP
+JGT L2
+JMP L0
+JMP L2
+
+L0:
+PUSH16 1
+STORER [fp, 8]
+MOV sp, fp
+POPR fp
+RET
+JMP L2
+
+L2:
+PUSH16 0
+LOADR [fp, 6]
+PUSH16 1
+SUB
+CALL fib
+PUSHR sp
+PUSH16 2
+PUSH16 1
+MUL
+ADD
+POPR sp
+PUSH16 0
+LOADR [fp, 6]
+PUSH16 2
+SUB
+CALL fib
+PUSHR sp
+PUSH16 2
+PUSH16 1
+MUL
+ADD
+POPR sp
+ADD
+STORER [fp, 8]
+MOV sp, fp
+POPR fp
+RET
+MOV sp, fp
+POPR fp
+RET
+
+main:
+PUSHR fp
+MOV fp, sp
+PUSH16 65534
+PUSHR sp
+ADD
+POPR sp
+PUSH16 0
+STORER [fp, 0]
+
+L3:
+LOADR [fp, 0]
+PUSH16 11
+CMP
+JGT L5
+JMP L7
+
+L5:
+JMP L4
+JMP L7
+
+L7:
+PUSH16 0
+LOADR [fp, 0]
+CALL fib
+PUSHR sp
+PUSH16 2
+PUSH16 1
+MUL
+ADD
+POPR sp
+POPR r0
+CALL print
+LOADR [fp, 0]
+PUSH16 1
+ADD
+STORER [fp, 0]
+JMP L3
+
+L4:
+MOV sp, fp
+POPR fp
+RET

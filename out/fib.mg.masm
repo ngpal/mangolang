@@ -1,0 +1,48 @@
+CALL main
+HALT
+
+fib:
+PUSHR fp
+MOV fp, sp
+LOADR [fp, 6]
+PUSH16 5
+CMP
+JLT L2
+JMP L0
+JMP L2
+
+L0:
+PUSH16 0
+STORER [fp, 8]
+MOV sp, fp
+POPR fp
+RET
+JMP L2
+
+L2:
+PUSH16 1
+STORER [fp, 8]
+MOV sp, fp
+POPR fp
+RET
+MOV sp, fp
+POPR fp
+RET
+
+main:
+PUSHR fp
+MOV fp, sp
+PUSH16 0
+PUSH16 4
+CALL fib
+PUSHR sp
+PUSH16 2
+PUSH16 1
+MUL
+ADD
+POPR sp
+POPR r0
+CALL print
+MOV sp, fp
+POPR fp
+RET

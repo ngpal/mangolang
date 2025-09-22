@@ -63,7 +63,7 @@ impl<'a> Debugger<'a> {
                 }
 
                 // poll keyboard
-                if event::poll(std::time::Duration::from_millis(10))?
+                if event::poll(std::time::Duration::from_millis(100))?
                     && let Event::Key(key) = event::read()?
                 {
                     match key.code {

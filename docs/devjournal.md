@@ -163,15 +163,30 @@ Stack grows down (top of stack is higher memory)
 |           ...             | <- lower memory
 ```
 
+# 22-09-2025
+- [x] fix branching and pushing 0 or 1 mess
+  - [x] send the condition into a seperate function -> if condition is not binaryop, evalute with gen_instrs and return -> if its a binary op, gen left and right recursively -> if its ||/&&, handle accordingly -> if its comparison, handle accordingly, plug in the correct branch instrs
+- [x] found another bug, when a function is called, locals arent allocated, which makes `sp` dip down into the locals in some cases
+- [x] debugger TUI overhaul
+
+## Plan from now on
+- Focus on flushing out all the bugs in the codegen, and then focus on vm
+  - [ ] redesign the ISA, a lot of bloat instructions that can be avoided
+  - [ ] move away from purely stack based design into more register/stack design
+  - [ ] ideally take inspiration from or entirely emulate an alreay existing CPU of similar power
+  - [ ] Seperate the VM project from the rest of the compiler
+  - [ ] Macros in the assembly? (inspiriation from the jdh video)
+
 - [ ] implement an IR for base level optimizations
   - [ ] implement IR
   - [ ] constant folding
   - [ ] dead code analysis
 - [ ] char datatype
-- [ ] functions as parameters
-- [ ] arrays
-  - [ ] messes everything up bc first datatype thats not just 1 word long
-- [ ] Strings!
-- [ ] fix the typing issues with if expressions
-- [ ] register based arithmetic instructions with mod
 - [ ] type casting
+- [ ] mod instruction
+- [ ] constants
+- [ ] allow multiple files
+- [ ] functions as parameters
+- [ ] arrays - challenging because its bigger than 1 word. 
+- [ ] Strings!
+- [ ] register based arithmetic instructions with mod

@@ -1,88 +1,58 @@
 CALL main
 HALT
 
-get_biggest:
-PUSHR fp
-MOV fp, sp
-LOADR [fp, 8]
-LOADR [fp, 6]
-CMP
-JGT L0
-PUSH16 0
-JMP L1
-
-L0:
-PUSH16 1
-
-L1:
-PUSH16 0
-CMP
-JEQ L3
-LOADR [fp, 8]
-STORER [fp, 10]
-MOV sp, fp
-POPR fp
-RET
-JMP L3
-
-L3:
-LOADR [fp, 6]
-STORER [fp, 10]
-MOV sp, fp
-POPR fp
-RET
-MOV sp, fp
-POPR fp
-RET
-
 main:
 PUSHR fp
 MOV fp, sp
-PUSH16 0
-STORER [fp, 4]
-
-L4:
-LOADR [fp, 4]
-PUSH16 22
-CMP
-JGT L6
-PUSH16 0
-JMP L7
-
-L6:
 PUSH16 1
-
-L7:
-PUSH16 0
-CMP
-JEQ L9
-JMP L5
-JMP L9
-
-L9:
-PUSH16 0
-LOADR [fp, 4]
-PUSH16 1
-ADD
-LOADR [fp, 4]
-CALL get_biggest
-PUSHR sp
 PUSH16 2
-PUSH16 2
-MUL
-ADD
-POPR sp
-POPR r0
-PUSHR r0
-POPR r0
-CALL print
-LOADR [fp, 4]
-PUSH16 1
-ADD
-STORER [fp, 4]
+CMP
+JGT L3
+PUSH16 0
 JMP L4
 
+L3:
+PUSH16 1
+
+L4:
+PUSH16 2
+PUSH16 3
+CMP
+JGT L5
+PUSH16 0
+JMP L6
+
 L5:
+PUSH16 1
+
+L6:
+OR
+PUSH16 5
+PUSH16 6
+CMP
+JLT L7
+PUSH16 0
+JMP L8
+
+L7:
+PUSH16 1
+
+L8:
+AND
+PUSH16 0
+CMP
+PUSH16 0
+CMP
+JEQ L2
+JMP L0
+
+L0:
+PUSH16 10
+POPR r0
+CALL print
+JMP L2
+
+L2:
 MOV sp, fp
 POPR fp
 RET
