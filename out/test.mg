@@ -1,5 +1,10 @@
 fn main() {
-	if !((1 > 2 || 2 > 3) && (5 < 6)) {
-		disp 10;
+	var a = 10;
+	loop {
+		disp a;
+		if a > 15 {
+			break;
+		}
+		a = a + 1;
 	}
 }

@@ -26,4 +26,4 @@ echo "linking $OUT_DIR/$BASENAME.mobj + out/print.mobj -> $OUT_DIR/$BASENAME.mbi
 cargo run --package linker --  "$OUT_DIR/$BASENAME.mobj" out/print.mobj -o "$OUT_DIR/$BASENAME.mbin" || exit 1
 
 echo "running $OUT_DIR/$BASENAME.mbin"
-cargo run --package vm -- "$OUT_DIR/$BASENAME.mbin"
+cargo run --package vm -- "$OUT_DIR/$BASENAME.mbin" -d

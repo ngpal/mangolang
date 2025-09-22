@@ -1,17 +1,23 @@
-use crossterm::{
-    cursor::{Hide, MoveDown, MoveLeft, MoveTo, Show},
-    event::{self, Event, KeyCode},
-    execute,
-    style::Print,
-    terminal::{self, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen},
+use ratatui::{
+    Terminal,
+    backend::CrosstermBackend,
+    crossterm::{
+        cursor::{Hide, Show},
+        event::{self, Event, KeyCode},
+        execute,
+        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    },
+    layout::{Constraint, Direction, Layout},
+    text::Text,
+    widgets::{Block, Borders, Paragraph, Wrap},
 };
-use std::io::{self, Write, stdout};
+use std::io::{self, stdout};
 
 use crate::core::{VIDEO_BASE, VIDEO_HEIGHT, VIDEO_WIDTH, Vm};
 
 pub struct Debugger<'a> {
     vm: &'a mut Vm,
-    mem_offset: usize, // starting address of memory view
+    mem_offset: usize,
 }
 
 impl<'a> Debugger<'a> {
@@ -20,57 +26,69 @@ impl<'a> Debugger<'a> {
     }
 
     pub fn run(&mut self) -> io::Result<()> {
-        let mut stdout = stdout();
-        execute!(stdout, EnterAlternateScreen, Hide)?;
-        terminal::enable_raw_mode()?;
+        enable_raw_mode()?; // disable line buffering / echo
+        execute!(stdout(), EnterAlternateScreen, Hide)?; // alt screen + hide cursor
 
-        let mut info_lines: Vec<String> = vec!["hit 'q' to quit debugger".into()];
-        let mut running = false; // true if 'c' pressed
+        let backend = CrosstermBackend::new(stdout());
+        let mut terminal = Terminal::new(backend)?;
 
-        let result = (|| {
-            let mut halted = false;
-            loop {
-                execute!(stdout, MoveTo(0, 0), Clear(ClearType::All))?;
+        let mut running = false;
+        let mut halted = false;
+        let mut info_lines = Vec::new();
 
-                // draw panels
-                // // draw screen at (0,0)
-                execute!(stdout, MoveTo(0, 0))?;
-                self.draw_screen(&mut stdout)?;
+        loop {
+            terminal.draw(|f| {
+                let area = f.area();
 
-                // draw disassembly at (WIDTH+4, 0)
-                execute!(stdout, MoveTo((VIDEO_WIDTH + 4) as u16, 0))?;
-                self.draw_disassembly(&mut stdout, VIDEO_HEIGHT)?;
+                // vertical split: top (screen) / bottom (other panels)
+                let vertical_chunks = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([
+                        Constraint::Length(VIDEO_HEIGHT as u16 + 4), // top panel height
+                        Constraint::Min(0), // bottom panel takes remaining space
+                    ])
+                    .split(area);
 
-                execute!(stdout, MoveDown(2))?;
-                self.draw_memory(&mut stdout, self.mem_offset, 8)?; // first 8 rows of memory
-                self.draw_registers(&mut stdout)?;
-                self.draw_stack(&mut stdout)?;
-                self.draw_info(&mut stdout, &info_lines)?;
-                self.draw_help(&mut stdout)?;
+                // center the screen horizontally by adding left/right empty space
+                let top_chunks = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([
+                        Constraint::Percentage(
+                            50 - ((VIDEO_WIDTH as u16 + 2) * 100 / area.width) / 2,
+                        ), // left padding
+                        Constraint::Length(VIDEO_WIDTH as u16 + 2), // video
+                        Constraint::Percentage(
+                            50 - ((VIDEO_WIDTH as u16 + 2) * 100 / area.width) / 2,
+                        ), // right padding
+                    ])
+                    .split(vertical_chunks[0]);
 
-                stdout.flush()?;
+                // bottom row: horizontal split for the remaining panels
+                let bottom_chunks = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([
+                        Constraint::Length(40), // disassembly
+                        Constraint::Length(20), // stack
+                        Constraint::Min(0),     // memory+registers
+                        Constraint::Length(25), // info+help
+                    ])
+                    .split(vertical_chunks[1]);
 
-                // handle VM execution
-                if running {
-                    match self.vm.exec_instruction() {
-                        Ok(true) => info_lines.push("program halted".into()),
-                        Ok(false) => {}
-                        Err(e) => {
-                            info_lines.push(format!("runtime error: {}", e));
-                            running = false;
-                        }
-                    }
-                }
+                // render widgets
+                f.render_widget(self.render_video(), top_chunks[1]);
+                f.render_widget(self.render_disassembly(bottom_chunks[0]), bottom_chunks[0]);
+                f.render_widget(self.render_stack(bottom_chunks[1]), bottom_chunks[1]);
+                f.render_widget(self.render_memory_registers(), bottom_chunks[2]);
+                f.render_widget(self.render_info(&info_lines), bottom_chunks[3]);
+            })?;
 
-                // poll keyboard
-                if event::poll(std::time::Duration::from_millis(100))?
-                    && let Event::Key(key) = event::read()?
-                {
+            if event::poll(std::time::Duration::from_millis(100))? {
+                if let Event::Key(key) = event::read()? {
                     match key.code {
-                        KeyCode::Char('q') => break Ok(()),
+                        KeyCode::Char('q') => break, // quit debugger
                         KeyCode::Char('s') => {
                             // single step
-                            if !halted {
+                            if !halted && !running {
                                 match self.vm.exec_instruction() {
                                     Ok(true) => {
                                         info_lines.push("program halted".into());
@@ -81,15 +99,18 @@ impl<'a> Debugger<'a> {
                                 }
                             }
                         }
-                        KeyCode::Char('c') => running = true, // continue
+                        KeyCode::Char('c') => running = true, // start continuous execution
+                        KeyCode::Char('x') => running = false, // stop continuous execution
                         KeyCode::Char('+') => {
+                            // scroll memory down
                             if self.mem_offset + 0x80 < self.vm.memory.len() {
-                                self.mem_offset += 0x80; // scroll down 8 rows (8*16=0x80 bytes)
+                                self.mem_offset += 0x80;
                             }
                         }
                         KeyCode::Char('-') => {
+                            // scroll memory up
                             if self.mem_offset >= 0x80 {
-                                self.mem_offset -= 0x80; // scroll up
+                                self.mem_offset -= 0x80;
                             } else {
                                 self.mem_offset = 0;
                             }
@@ -98,122 +119,117 @@ impl<'a> Debugger<'a> {
                     }
                 }
             }
-        })();
 
-        terminal::disable_raw_mode()?;
-        execute!(stdout, Show, LeaveAlternateScreen)?;
-
-        result
-    }
-
-    fn draw_memory(
-        &self,
-        stdout: &mut std::io::Stdout,
-        start_addr: usize,
-        rows: usize,
-    ) -> io::Result<()> {
-        execute!(stdout, Print("\r\nMemory (hex dump):\r\n"))?;
-        let mem = &self.vm.memory;
-        for r in 0..rows {
-            let addr = start_addr + r * 16;
-            if addr >= mem.len() {
-                break;
-            }
-            let line_bytes: Vec<String> = mem[addr..(addr + 16).min(mem.len())]
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect();
-            let ascii: String = mem[addr..(addr + 16).min(mem.len())]
-                .iter()
-                .map(|b| {
-                    if b.is_ascii_graphic() || *b == b' ' {
-                        *b as char
-                    } else {
-                        '.'
+            if running && !halted {
+                match self.vm.exec_instruction() {
+                    Ok(true) => {
+                        info_lines.push("program halted".into());
+                        halted = true;
+                        running = false;
                     }
-                })
-                .collect();
-            execute!(
-                stdout,
-                Print(format!(
-                    "{:04X}: {:<48}  {}\r\n",
-                    addr,
-                    line_bytes.join(" "),
-                    ascii
-                ))
-            )?;
-        }
-        Ok(())
-    }
-
-    fn draw_screen(&self, stdout: &mut std::io::Stdout) -> io::Result<()> {
-        execute!(stdout, Print("┏"))?; // top-left corner
-        for _ in 0..VIDEO_WIDTH {
-            execute!(stdout, Print("━"))?;
-        }
-        execute!(stdout, Print("┓\r\n"))?; // top-right
-
-        for y in 0..VIDEO_HEIGHT {
-            execute!(stdout, Print("┃"))?; // left border
-            for x in 0..VIDEO_WIDTH {
-                let idx = VIDEO_BASE + y * VIDEO_WIDTH + x;
-                if idx >= self.vm.memory.len() {
-                    break;
+                    Ok(false) => {}
+                    Err(e) => {
+                        info_lines.push(format!("runtime error: {}", e));
+                        running = false;
+                    }
                 }
-
-                let ch = self.vm.memory[idx];
-                let display = if ch == 0 || ch == b'\n' {
-                    ' '
-                } else {
-                    ch as char
-                };
-                execute!(stdout, Print(display))?;
             }
-            execute!(stdout, Print("┃\r\n"))?; // right border + newline
         }
 
-        execute!(stdout, Print("┗"))?; // bottom-left
-        for _ in 0..VIDEO_WIDTH {
-            execute!(stdout, Print("━"))?;
-        }
-        execute!(stdout, Print("┛\r\n"))?; // bottom-right
-
+        disable_raw_mode()?;
+        execute!(stdout(), LeaveAlternateScreen, Show)?;
         Ok(())
     }
 
-    fn draw_disassembly(&mut self, stdout: &mut std::io::Stdout, lines: usize) -> io::Result<()> {
+    fn render_video(&self) -> Paragraph<'_> {
+        let inner_width = VIDEO_WIDTH; // matches panel inner width
+        let screen_text = (0..VIDEO_HEIGHT)
+            .map(|y| {
+                let mut line = String::with_capacity(inner_width);
+                for x in 0..VIDEO_WIDTH {
+                    let idx = VIDEO_BASE + y * VIDEO_WIDTH + x;
+                    let ch = if idx < self.vm.memory.len() {
+                        let byte = self.vm.memory[idx];
+                        if byte.is_ascii_graphic() || byte == b' ' {
+                            byte as char
+                        } else {
+                            ' '
+                        }
+                    } else {
+                        ' '
+                    };
+                    line.push(ch);
+                }
+                line
+            })
+            .collect::<Vec<_>>()
+            .join("");
+
+        Paragraph::new(Text::from(screen_text))
+            .block(Block::default().title("VIDEO").borders(Borders::ALL))
+            .wrap(Wrap { trim: false })
+    }
+
+    fn render_disassembly(&mut self, area: ratatui::layout::Rect) -> Paragraph<'_> {
         let mut addr = self.vm.ip as usize;
+        let mut lines = Vec::new();
 
-        execute!(
-            stdout,
-            Print("┏━━ Disassembly ━━━━━━━━━━━━━━━━━━━━━━━┓"),
-            MoveDown(1),
-            MoveLeft(40)
-        )?;
+        let max_lines = area.height.saturating_sub(2);
 
-        for _ in 0..lines {
+        for _ in 0..max_lines {
             let (instr, size) = self.disasm_at(addr);
             let marker = if addr == self.vm.ip as usize {
                 ">"
             } else {
                 " "
             };
-            execute!(
-                stdout,
-                Print(format!("{} 0x{:04X}: {:<20}", marker, addr, instr)),
-                MoveDown(1),
-                MoveLeft(30),
-            )?;
+            lines.push(format!("{} 0x{:04X}: {}", marker, addr, instr));
             addr += size;
         }
 
-        execute!(
-            stdout,
-            Print("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"),
-            MoveDown(1),
-            MoveLeft(30),
-        )?;
-        Ok(())
+        Paragraph::new(Text::from(lines.join("\n")))
+            .block(Block::default().title("DISASSEMBLY").borders(Borders::ALL))
+            .wrap(Wrap { trim: false })
+    }
+
+    fn render_stack(&self, area: ratatui::layout::Rect) -> Paragraph<'_> {
+        let mut lines = Vec::new();
+        let mem = &self.vm.memory;
+        let sp = self.vm.registers.get_sp() as usize;
+        let fp = self.vm.registers.get_fp() as usize;
+
+        // collect stack entries from sp upward
+        let mut stack_entries = Vec::new();
+        let mut addr = sp;
+        while addr + 1 < mem.len() {
+            let val = u16::from_le_bytes([mem[addr], mem[addr + 1]]);
+            stack_entries.push((addr, val));
+            addr += 2;
+        }
+
+        // only keep as many as fit in panel
+        let max_lines = area.height as usize;
+        let start = if stack_entries.len() > max_lines {
+            stack_entries.len() - max_lines
+        } else {
+            0
+        };
+
+        for &(addr, val) in &stack_entries[start..] {
+            let left_marker = if addr == sp { ">" } else { " " };
+            let right_marker = if addr == fp { "<" } else { " " };
+            lines.push(format!(
+                "{}[0x{:04X}] = {:04X}{}",
+                left_marker, addr, val, right_marker
+            ));
+        }
+
+        // reverse so top of stack appears at bottom of panel
+        lines.reverse();
+
+        Paragraph::new(Text::from(lines.join("\n")))
+            .block(Block::default().title("STACK").borders(Borders::ALL))
+            .wrap(Wrap { trim: false })
     }
 
     fn disasm_at(&mut self, addr: usize) -> (String, usize) {
@@ -317,68 +333,99 @@ impl<'a> Debugger<'a> {
         (instr_str, size)
     }
 
-    fn draw_registers(&self, stdout: &mut std::io::Stdout) -> io::Result<()> {
+    fn render_memory_registers(&self) -> Paragraph<'_> {
+        let mut lines = Vec::new();
+
+        // registers
         let r = |i| self.vm.registers.get_reg(i).unwrap_or(0);
         let sp = self.vm.registers.get_sp();
         let fp = self.vm.registers.get_fp();
         let ip = self.vm.ip;
         let f = &self.vm.flags;
 
-        execute!(
-            stdout,
-            Print(format!(
-                "\r\nRegisters + Flags:\r\nr0={:04X} r1={:04X} r2={:04X} r3={:04X} SP={:04X} FP={:04X} IP={:04X} Flags: Z={} N={} V={}\r\n",
-                r(0),
-                r(1),
-                r(2),
-                r(3),
-                sp,
-                fp,
-                ip,
-                f.z,
-                f.n,
-                f.v
-            ))
-        )?;
-        Ok(())
-    }
+        lines.push(format!(
+            "r0={:04X}  r1={:04X}  r2={:04X}  r3={:04X}",
+            r(0),
+            r(1),
+            r(2),
+            r(3)
+        ));
 
-    fn draw_stack(&self, stdout: &mut std::io::Stdout) -> io::Result<()> {
-        execute!(stdout, Print("\r\nStack (top -> bottom):\r\n"))?;
+        lines.push(format!(
+            "SP={:04X}  FP={:04X}  IP={:04X}  Z={}  N={}  V={}",
+            sp, fp, ip, f.z, f.n, f.v
+        ));
 
-        let mut sp = self.vm.registers.get_sp() as usize;
+        lines.push(String::new());
+
+        // memory hex dump
         let mem = &self.vm.memory;
-
-        // top of stack is sp + 2, print downward
-        for _ in 0..16 {
-            let top = sp + 2;
-            if top + 1 >= mem.len() {
+        let rows = 8;
+        for r in 0..rows {
+            let addr = self.mem_offset + r * 16;
+            if addr >= mem.len() {
                 break;
             }
-            let val = u16::from_le_bytes([mem[top], mem[top + 1]]);
-            execute!(stdout, Print(format!("[0x{:04X}] = {:04X}\r\n", top, val)))?;
-            sp += 2;
+
+            let hex_bytes: Vec<String> = mem[addr..(addr + 16).min(mem.len())]
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect();
+
+            let ascii: String = mem[addr..(addr + 16).min(mem.len())]
+                .iter()
+                .map(|b| {
+                    if b.is_ascii_graphic() || *b == b' ' {
+                        *b as char
+                    } else {
+                        '.'
+                    }
+                })
+                .collect();
+
+            lines.push(format!(
+                "{:04X}: {:<48}  {}",
+                addr,
+                hex_bytes.join(" "),
+                ascii
+            ));
         }
 
-        Ok(())
+        Paragraph::new(Text::from(lines.join("\n")))
+            .block(
+                Block::default()
+                    .title("MEMORY+REGISTERS")
+                    .borders(Borders::ALL),
+            )
+            .wrap(Wrap { trim: false })
     }
 
-    fn draw_info(&self, stdout: &mut std::io::Stdout, info_lines: &[String]) -> io::Result<()> {
-        execute!(stdout, Print("\r\nInfo / Messages:\r\n"))?;
-        for line in info_lines.iter().rev().take(5) {
-            // show last 5 messages
-            execute!(stdout, Print(line), Print("\r\n"))?;
-        }
-        Ok(())
-    }
+    fn render_info(&self, info_lines: &Vec<String>) -> Paragraph<'_> {
+        let shortcuts = vec![
+            String::new(),
+            "q - quit".into(),
+            "s - step".into(),
+            "c - continue".into(),
+            "s - stop".into(),
+            "+ - scroll mem down".into(),
+            "- - scroll mem up".into(),
+        ];
 
-    fn draw_help(&self, stdout: &mut std::io::Stdout) -> io::Result<()> {
-        execute!(
-            stdout,
-            Print("\r\nShortcuts:\r\n"),
-            Print("  q - quit  |  s - step  |  c - continue\r\n"),
-            Print("  + - scroll memory down  |  - - scroll memory up\r\n"),
-        )?;
-        Ok(())
+        let mut display_lines = info_lines
+            .iter()
+            .rev()
+            .take(15)
+            .rev()
+            .cloned()
+            .collect::<Vec<_>>();
+        display_lines.extend(shortcuts);
+
+        Paragraph::new(display_lines.join("\n"))
+            .block(
+                Block::default()
+                    .title("INFO / MESSAGES")
+                    .borders(Borders::ALL),
+            )
+            .wrap(Wrap { trim: false })
     }
 }
