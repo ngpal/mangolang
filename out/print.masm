@@ -1,28 +1,29 @@
 ; print char from r0 without using `PRINT` and `MVCUR`
-; VIDEO_BASE = 0x8000
-; CURSOR = 0x81e0
+
+@define VIDEO_BASE = 0x8000
+@define CURSOR     = 0x81e0
 
 print:
 	; put current cursor position on the top of the stack
-	PUSH16 0x81E0
+	PUSH16  =CURSOR
 	LOADP
 
 	; store current cursor value in r1 for incrementing later
-	POPR r1
-	PUSHR r1
+	POPR    r1
+	PUSHR   r1
 
 	; calculate offset
-	PUSH16 0x8000
+	PUSH16  =VIDEO_BASE
 	ADD
 
 	; write the character
-	PUSHR r0
+	PUSHR   r0
 	STOREP
 
 	; incrment cursor
-	PUSH16 0x81E0
-	PUSHR r1
-	PUSH16 1
+	PUSH16  =VIDEO_BASE
+	PUSHR   r1
+	PUSH16  1
 	ADD
 	STOREP
 	
