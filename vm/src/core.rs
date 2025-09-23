@@ -202,6 +202,17 @@ impl Vm {
         self.memory[addr as usize]
     }
 
+    fn write_byte(&mut self, addr: u16, val: u8) -> RuntimeResult<()> {
+        if (addr as usize) < self.program_end {
+            return Err(RuntimeError(
+                "invalid attempt to write to memory in text area".to_string(),
+            ));
+        }
+
+        self.memory[addr as usize] = val;
+        Ok(())
+    }
+
     fn fetch_byte(&mut self) -> u8 {
         let ret = self.read_byte(self.ip);
         self.ip += 1;
@@ -355,6 +366,15 @@ impl Vm {
                 let addr = self.pop_word()?;
                 self.write_word(addr, val)?;
             }
+            Instr::Loadpb => {
+                let addr = self.pop_word()?;
+                self.push_word(self.read_byte(addr) as u16)?;
+            }
+            Instr::Storepb => {
+                let val = self.pop_word()? as u8;
+                let addr = self.pop_word()?;
+                self.write_byte(addr, val)?;
+            }
             Instr::Call => {
                 let addr = self.fetch_word();
                 self.push_word(self.ip)?;
@@ -471,6 +491,8 @@ impl Vm {
                 }
                 Some(Instr::Loadp) => format!("0x{:04X}: LOADP", addr),
                 Some(Instr::Storep) => format!("0x{:04X}: STOREP", addr),
+                Some(Instr::Loadpb) => format!("0x{:04X}: LOADPB", addr),
+                Some(Instr::Storepb) => format!("0x{:04X}: STOREPB", addr),
                 Some(Instr::Loadr) => {
                     size = 3;
                     let reg = self.memory[addr + 1];

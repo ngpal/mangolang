@@ -142,6 +142,8 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             }
             Instr::Loadr(rd, ofst) => vec![0x14, *rd, *ofst as u8],
             Instr::Storer(rs, ofst) => vec![0x15, *rs, *ofst as u8],
+            Instr::Loadpb => vec![0x16],
+            Instr::Storepb => vec![0x17],
         });
     }
 

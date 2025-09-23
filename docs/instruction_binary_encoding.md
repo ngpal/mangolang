@@ -22,6 +22,8 @@ Instruction Set (Current)
 | 0x13   | STOREP   | -        | pops val and addr from stack, stores val at addr |
 | 0x14   | LOADR    | rs+imm   | push val @ \[rs + imm] |
 | 0x15   | STORER   | rd+imm   | \[rd + imm] = pop |
+| 0x16   | LOADPB   | -        | pops addr and pushes byte from addr to stack   |
+| 0x17   | STOREPB  | -        | pops addr and word, writes lower bytes to stack |
 
 ---
 

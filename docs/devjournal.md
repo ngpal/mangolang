@@ -207,7 +207,6 @@ Stack grows down (top of stack is higher memory)
   - [x] type checker
     - [x] type checking for new ast nodes
     - [x] handle type definitions
-    - [x] each element in a `char` or `bool` array may only take up 1 byte + padding
     - [x] handle assigning to an index
 
 ## ASSUMPTION
@@ -226,6 +225,8 @@ Stack grows down (top of stack is higher memory)
 ## HUGE BUG
 - The way `TypedAstNode::from_ast` works, everything gets an eval type of Unit passed down to it from statements getting unit.
   
+- [ ] each element in a `char` or `bool` array may only take up 1 byte + padding
+  - [ ] new instructions `LOADPB` and `STOREPB` for byte addressing
 - [ ] strings!
 - [ ] allow multiple files
   - [ ] enforce main function on a assembler level not compiler level

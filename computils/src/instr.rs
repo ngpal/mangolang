@@ -6,6 +6,8 @@ pub enum Instr {
     Store(u8),
     Loadp,
     Storep,
+    Loadpb,
+    Storepb,
     Loadr(u8, i8),
     Storer(u8, i8),
 
@@ -88,6 +90,8 @@ impl Instr {
             Instr::Ret => 1,
             Instr::Loadr { .. } => 3,
             Instr::Storer { .. } => 3,
+            Instr::Loadpb => 1,
+            Instr::Storepb => 1,
         }
     }
 }

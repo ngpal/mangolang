@@ -150,6 +150,8 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Vec<Instr>> {
             "store8" => Instr::Store(parse_imm8(Some(rest), lineno)?),
             "loadp" => Instr::Loadp,
             "storep" => Instr::Storep,
+            "loadpb" => Instr::Loadpb,
+            "storepb" => Instr::Storepb,
 
             "loadr" => {
                 let inner = rest
