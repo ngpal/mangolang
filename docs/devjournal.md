@@ -201,7 +201,7 @@ Stack grows down (top of stack is higher memory)
   - [ ] parser
     - [x] allow shorthand `var a[b]` where `b` has to be an int literal.
     - [x] allow `var a = [1, 2, 3, 4];`
-    - [ ] indexing
+    - [x] indexing
     - [ ] type definitions
   - [ ] type checker
     - [ ] handle type definitions
