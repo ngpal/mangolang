@@ -192,8 +192,8 @@ Stack grows down (top of stack is higher memory)
 ## NOTE
 - Can't reliably print numbers because no data structure to store and reverse the order of the digits haha
 
-- [ ] constants in assembly
-- [ ] rewrite print subroutine with the constants
+- [x] constants in assembly
+- [x] rewrite print subroutine with the constants
 - [ ] allow multiple files
 - [ ] heap allocation!
 - [ ] arrays - challenging because its bigger than 1 word. 
