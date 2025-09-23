@@ -194,10 +194,26 @@ Stack grows down (top of stack is higher memory)
 
 - [x] constants in assembly
 - [x] rewrite print subroutine with the constants
+- [ ] stack allocated arrays
+  - [ ] lexer
+  - [ ] ast
+    - [ ] indexing
+  - [ ] parser
+    - [ ] allow shorthand `[a: b]`, repeats `a` `b` times.
+    - [ ] indexing
+  - [ ] type checker
+    - [ ] each element in a `char` or `bool` array may only take up 1 byte + padding
+  - [ ] codegen
+    - [ ] `var a\[4]`, evaluating `a` in `var x = a`, `x` would get a pointer to the array;
+- [ ] strings!
 - [ ] allow multiple files
+  - [ ] enforce main function on a assembler level not compiler level
+  - [ ] allow only function headers to pass through for functions implemented in assembly
+    - [ ] new syntax for letting a function pass through the undefined functions check
+  - [ ] new syntax for imports
 - [ ] heap allocation!
-- [ ] arrays - challenging because its bigger than 1 word. 
-- [ ] Strings!
+  - [ ] simple bump allocator
+- [ ] vectors!
 
 ## Plans for the vm
 - Focus on flushing out all the bugs in the codegen, and then focus on vm
