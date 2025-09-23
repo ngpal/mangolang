@@ -199,7 +199,7 @@ Stack grows down (top of stack is higher memory)
   - [ ] ast
     - [ ] indexing
   - [ ] parser
-    - [ ] allow shorthand `[a: b]`, repeats `a` `b` times.
+    - [ ] allow shorthand `var a[b]` where `b` has to be a constant.
     - [ ] indexing
   - [ ] type checker
     - [ ] each element in a `char` or `bool` array may only take up 1 byte + padding
@@ -214,6 +214,7 @@ Stack grows down (top of stack is higher memory)
 - [ ] heap allocation!
   - [ ] simple bump allocator
 - [ ] vectors!
+- [ ] floats?
 
 ## Plans for the vm
 - Focus on flushing out all the bugs in the codegen, and then focus on vm
