@@ -384,7 +384,7 @@ impl<'a> Debugger<'a> {
             0x44 => "SHFT".into(),
             0x50 => {
                 // MOV rd, rs
-                size = 1;
+                size = 2;
                 let byte = self.vm.memory[addr + 1];
                 let rd = byte >> 4;
                 let rs = byte & 0xF;

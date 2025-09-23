@@ -183,8 +183,17 @@ Stack grows down (top of stack is higher memory)
     - `bool as int` reinterpret
     - `char as int` reinterpret
     
-  - [ ] change functionality of disp to print one `char` w/o newline
-  - [ ] rewrite a `print` subroutine (move away from using `PRINT` and `MVCUR`, they're pretty high level for assembly instructions and I wanna move away from them)
+  - [x] change functionality of disp to print one `char` w/o newline
+  - [x] rewrite a `print` subroutine (move away from using `PRINT` and `MVCUR`, they're pretty high level for assembly instructions and I wanna move away from them)
+- [x] Hello, world!
+- [x] mod instruction
+- [x] hex numbers in assembly
+
+## NOTE
+- Can't reliably print numbers because no data structure to store and reverse the order of the digits haha
+
+- [ ] constants in assembly
+- [ ] rewrite print subroutine with the constants
 
 ## Plans for the vm
 - Focus on flushing out all the bugs in the codegen, and then focus on vm
@@ -199,7 +208,6 @@ Stack grows down (top of stack is higher memory)
   - [ ] constant folding
   - [ ] dead code analysis
 - [ ] type casting
-- [ ] mod instruction
 - [ ] constants
 - [ ] allow multiple files
 - [ ] functions as parameters

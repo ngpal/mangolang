@@ -20,6 +20,7 @@ pub enum Instr {
     Div = 0x33,
     Neg = 0x34,
     Cmp = 0x35,
+    Mod = 0x36,
     Not = 0x40,
     And = 0x41,
     Or = 0x42,
@@ -55,6 +56,7 @@ impl Instr {
             0x33 => Some(Instr::Div),
             0x34 => Some(Instr::Neg),
             0x35 => Some(Instr::Cmp),
+            0x36 => Some(Instr::Mod),
             0x40 => Some(Instr::Not),
             0x41 => Some(Instr::And),
             0x42 => Some(Instr::Or),
@@ -88,6 +90,7 @@ impl Instr {
             | Instr::Neg
             | Instr::Not
             | Instr::Cmp
+            | Instr::Mod
             | Instr::Halt => 1,
             Instr::And => 1,
             Instr::Or => 1,

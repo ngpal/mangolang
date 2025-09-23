@@ -23,6 +23,7 @@ pub enum Instr {
     Mul,
     Div,
     Neg,
+    Mod,
 
     Not,
 
@@ -67,6 +68,7 @@ impl Instr {
             | Instr::Neg
             | Instr::Not
             | Instr::Cmp
+            | Instr::Mod
             | Instr::Halt => 1,
             Instr::Lbl(_) => 0,
             Instr::JmpLbl(_) => 2,

@@ -1,0 +1,63 @@
+CALL main
+HALT
+
+print_num:
+PUSHR fp
+MOV fp, sp
+PUSH16 65534
+PUSHR sp
+ADD
+POPR sp
+LOADR [fp, 6]
+STORER [fp, 0]
+
+L0:
+LOADR [fp, 0]
+PUSH16 0
+CMP
+JEQ L2
+JMP L4
+
+L2:
+JMP L1
+JMP L4
+
+L4:
+LOADR [fp, 0]
+PUSH16 10
+MOD
+PUSH16 48
+ADD
+PUSH16 15
+AND
+POPR r0
+CALL print
+LOADR [fp, 0]
+PUSH16 10
+DIV
+STORER [fp, 0]
+JMP L0
+
+L1:
+MOV sp, fp
+POPR fp
+RET
+
+main:
+PUSHR fp
+MOV fp, sp
+PUSH16 0
+PUSHR sp
+ADD
+POPR sp
+PUSH16 1
+CALL print_num
+PUSHR sp
+PUSH16 2
+PUSH16 1
+MUL
+ADD
+POPR sp
+MOV sp, fp
+POPR fp
+RET

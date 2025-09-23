@@ -247,6 +247,7 @@ impl Vm {
             | Instr::Mul
             | Instr::Div
             | Instr::Cmp
+            | Instr::Mod
             | Instr::And
             | Instr::Or
             | Instr::Xor
@@ -263,6 +264,13 @@ impl Vm {
                             return Err(RuntimeError("division by zero".into()));
                         }
                         let (res, overflow) = (left as i16).overflowing_div(right as i16);
+                        (res as u16, overflow)
+                    }
+                    Instr::Mod => {
+                        if right == 0 {
+                            return Err(RuntimeError("modulo by zero".into()));
+                        }
+                        let (res, overflow) = (left as i16).overflowing_rem(right as i16);
                         (res as u16, overflow)
                     }
                     Instr::And => (left & right, false),
@@ -447,6 +455,7 @@ impl Vm {
                 Some(Instr::Div) => format!("0x{:04X}: DIV", addr),
                 Some(Instr::Neg) => format!("0x{:04X}: NEG", addr),
                 Some(Instr::Cmp) => format!("0x{:04X}: CMP", addr),
+                Some(Instr::Mod) => format!("0x{:04X}: MOD", addr),
                 Some(Instr::Not) => format!("0x{:04X}: NOT", addr),
                 Some(Instr::And) => format!("0x{:04X}: AND", addr),
                 Some(Instr::Or) => format!("0x{:04X}: OR", addr),

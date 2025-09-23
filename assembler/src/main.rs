@@ -115,42 +115,58 @@ fn parse_reg(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
 }
 
 fn parse_imm8(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
-    token
-        .ok_or_else(|| AssemblerError {
-            msg: "missing 8-bit immediate".into(),
-            line: Some(lineno + 1),
-        })?
-        .parse::<u8>()
-        .map_err(|_| AssemblerError {
-            msg: "invalid 8-bit immediate".into(),
-            line: Some(lineno + 1),
-        })
+    let tok = token.ok_or_else(|| AssemblerError {
+        msg: "missing 8-bit immediate".into(),
+        line: Some(lineno + 1),
+    })?;
+
+    let val = if let Some(hex) = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
+        u8::from_str_radix(hex, 16)
+    } else {
+        tok.parse::<u8>()
+    };
+
+    val.map_err(|_| AssemblerError {
+        msg: format!("invalid 8-bit immediate `{}`", tok),
+        line: Some(lineno + 1),
+    })
 }
 
 fn parse_imm8_signed(token: Option<&str>, lineno: usize) -> AssemblerResult<i8> {
-    token
-        .ok_or_else(|| AssemblerError {
-            msg: "missing signed 8-bit immediate".into(),
-            line: Some(lineno + 1),
-        })?
-        .parse::<i8>()
-        .map_err(|_| AssemblerError {
-            msg: "invalid signed 8-bit immediate".into(),
-            line: Some(lineno + 1),
-        })
+    let tok = token.ok_or_else(|| AssemblerError {
+        msg: "missing signed 8-bit immediate".into(),
+        line: Some(lineno + 1),
+    })?;
+
+    let val = if let Some(hex) = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
+        // parse as u8 first, then reinterpret as i8
+        u8::from_str_radix(hex, 16).map(|n| n as i8)
+    } else {
+        tok.parse::<i8>()
+    };
+
+    val.map_err(|_| AssemblerError {
+        msg: format!("invalid signed 8-bit immediate `{}`", tok),
+        line: Some(lineno + 1),
+    })
 }
 
 fn parse_imm16(token: Option<&str>, lineno: usize) -> AssemblerResult<u16> {
-    token
-        .ok_or_else(|| AssemblerError {
-            msg: "missing 16-bit immediate".into(),
-            line: Some(lineno + 1),
-        })?
-        .parse::<u16>()
-        .map_err(|_| AssemblerError {
-            msg: "invalid 16-bit immediate".into(),
-            line: Some(lineno + 1),
-        })
+    let tok = token.ok_or_else(|| AssemblerError {
+        msg: "missing 16-bit immediate".into(),
+        line: Some(lineno + 1),
+    })?;
+
+    let val = if let Some(hex) = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
+        u16::from_str_radix(hex, 16)
+    } else {
+        tok.parse::<u16>()
+    };
+
+    val.map_err(|_| AssemblerError {
+        msg: format!("invalid 16-bit immediate `{}`", tok),
+        line: Some(lineno + 1),
+    })
 }
 
 fn parse_label(token: Option<&str>, lineno: usize) -> AssemblerResult<String> {
@@ -277,6 +293,7 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Vec<Instr>> {
             "div" => Instr::Div,
             "neg" => Instr::Neg,
             "cmp" => Instr::Cmp,
+            "mod" => Instr::Mod,
 
             // bitwise
             "not" => Instr::Not,
@@ -344,6 +361,7 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             Instr::Div => vec![0x33],
             Instr::Neg => vec![0x34],
             Instr::Cmp => vec![0x35],
+            Instr::Mod => vec![0x36],
             Instr::Not => vec![0x40],
             Instr::And => vec![0x41],
             Instr::Or => vec![0x42],

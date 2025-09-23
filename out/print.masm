@@ -1,56 +1,29 @@
+; print char from r0 without using `PRINT` and `MVCUR`
+; VIDEO_BASE = 0x8000
+; CURSOR = 0x81e0
+
 print:
-pushr r0
-push16 0
-cmp
-jeq8 print_zero
+	; put current cursor position on the top of the stack
+	PUSH16 0x81E0
+	LOADP
 
-; extract digits
-loop:
-pushr r0
-pushr r0
-push16 10
-div
-popr r0
-pushr r0
-push16 10
-mul
-sub
-popr r1
-pushr r1
-push16 48
-add
-pushr r2
-push16 1
-add
-popr r2
+	; store current cursor value in r1 for incrementing later
+	POPR r1
+	PUSHR r1
 
-; check if quotiend != 0, else break
-pushr r0
-push16 0
-cmp
-jeq8 print_digits
-jmp8 loop
+	; calculate offset
+	PUSH16 0x8000
+	ADD
 
-; print digits from the stack
-print_digits:
-pushr r2
-push16 1
-sub
-popr r2
-print
-pushr r2
-push16 0
-cmp
-jeq8 end
-jmp8 print_digits
+	; write the character
+	PUSHR r0
+	STOREP
 
-; handle zero
-print_zero:
-push16 48
-print
-
-; end
-end:
-push16 10
-print
-ret
+	; incrment cursor
+	PUSH16 0x81E0
+	PUSHR r1
+	PUSH16 1
+	ADD
+	STOREP
+	
+	RET
