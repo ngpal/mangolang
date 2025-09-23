@@ -1,3 +1,4 @@
 fn main() {
-	disp (('0' as int) + 9) as char
+	var a = [1, 2, 3, 4];
+	a[2] = 5;
 }

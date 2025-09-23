@@ -5,7 +5,7 @@ fn hello() {
 	disp 'l'
 	disp 'o'
 	disp ','
-	disp ' '
+	disp '\n'
 	disp 'w'
 	disp 'o'
 	disp 'r'

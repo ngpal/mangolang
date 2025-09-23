@@ -209,9 +209,23 @@ Stack grows down (top of stack is higher memory)
     - [x] handle type definitions
     - [x] each element in a `char` or `bool` array may only take up 1 byte + padding
     - [x] handle assigning to an index
-  - [ ] codegen
-    - [ ] disallow empty arrays
-    - [ ] `var a\[4]`, evaluating `a` in `var x = a`, `x` would get a pointer to the array;
+
+## ASSUMPTION
+> Each statements leaves the sp where it found it (ideally)
+
+- When this assumption fails, the stack allocated arrays fall. And it could fail, ALL THE TIME.
+- Should I enforce it?
+  - I will proceed assuming it leaves it untouched and see if there are any serious offenders
+  - Dead code analysis could fix all of this, but I digress
+  - Look into stack balancing
+
+  - [x] codegen
+    - [x] generate code for new ast kinds
+    - [x] `var a\[4]`, evaluating `a` in `var x = a`, `x` would get a pointer to the array;
+
+## HUGE BUG
+- The way `TypedAstNode::from_ast` works, everything gets an eval type of Unit passed down to it from statements getting unit.
+  
 - [ ] strings!
 - [ ] allow multiple files
   - [ ] enforce main function on a assembler level not compiler level

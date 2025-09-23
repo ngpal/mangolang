@@ -5,7 +5,7 @@ hello:
 PUSHR fp
 MOV fp, sp
 PUSH16 0
-PUSHR sp
+PUSHR fp
 ADD
 POPR sp
 PUSH16 72
@@ -26,7 +26,7 @@ CALL print
 PUSH16 44
 POPR r0
 CALL print
-PUSH16 32
+PUSH16 10
 POPR r0
 CALL print
 PUSH16 119
@@ -55,7 +55,7 @@ main:
 PUSHR fp
 MOV fp, sp
 PUSH16 0
-PUSHR sp
+PUSHR fp
 ADD
 POPR sp
 CALL hello

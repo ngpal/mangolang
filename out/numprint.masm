@@ -4,12 +4,22 @@ HALT
 print_num:
 PUSHR fp
 MOV fp, sp
-PUSH16 65534
-PUSHR sp
+PUSH16 65530
+PUSHR fp
 ADD
 POPR sp
 LOADR [fp, 6]
 STORER [fp, 0]
+PUSHR sp
+PUSH16 10
+SUB
+POPR sp
+PUSHR sp
+PUSH16 10
+ADD
+STORER [fp, -2]
+PUSH16 0
+STORER [fp, -4]
 
 L0:
 LOADR [fp, 0]
@@ -23,15 +33,21 @@ JMP L1
 JMP L4
 
 L4:
+LOADR [fp, -2]
+LOADR [fp, -4]
+PUSH16 2
+MUL
+SUB
 LOADR [fp, 0]
 PUSH16 10
 MOD
 PUSH16 48
 ADD
-PUSH16 255
-AND
-POPR r0
-CALL print
+STOREP
+LOADR [fp, -4]
+PUSH16 1
+ADD
+STORER [fp, -4]
 LOADR [fp, 0]
 PUSH16 10
 DIV
@@ -39,6 +55,36 @@ STORER [fp, 0]
 JMP L0
 
 L1:
+
+L5:
+LOADR [fp, -4]
+PUSH16 0
+CMP
+JLT L7
+JMP L9
+
+L7:
+JMP L6
+JMP L9
+
+L9:
+LOADR [fp, -2]
+LOADR [fp, -4]
+PUSH16 2
+MUL
+SUB
+LOADP
+PUSH16 255
+AND
+POPR r0
+CALL print
+LOADR [fp, -4]
+PUSH16 1
+SUB
+STORER [fp, -4]
+JMP L5
+
+L6:
 MOV sp, fp
 POPR fp
 RET
@@ -47,7 +93,7 @@ main:
 PUSHR fp
 MOV fp, sp
 PUSH16 0
-PUSHR sp
+PUSHR fp
 ADD
 POPR sp
 PUSH16 9920
