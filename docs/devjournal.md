@@ -195,11 +195,12 @@ Stack grows down (top of stack is higher memory)
 - [x] constants in assembly
 - [x] rewrite print subroutine with the constants
 - [ ] stack allocated arrays
-  - [ ] lexer
-  - [ ] ast
-    - [ ] indexing
+  - [x] lexer
+  - [x] ast
+    - [k] indexing
   - [ ] parser
-    - [ ] allow shorthand `var a[b]` where `b` has to be a constant.
+    - [ ] allow shorthand `var a[b]` where `b` has to be an int literal.
+    - [ ] allow `var a = [1, 2, 3, 4];`
     - [ ] indexing
   - [ ] type checker
     - [ ] each element in a `char` or `bool` array may only take up 1 byte + padding
@@ -211,6 +212,9 @@ Stack grows down (top of stack is higher memory)
   - [ ] allow only function headers to pass through for functions implemented in assembly
     - [ ] new syntax for letting a function pass through the undefined functions check
   - [ ] new syntax for imports
+
+- [ ] introduce `uint` type
+- [ ] allow only `uint`s to index
 - [ ] heap allocation!
   - [ ] simple bump allocator
 - [ ] vectors!
