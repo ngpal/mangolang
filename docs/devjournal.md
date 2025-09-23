@@ -194,6 +194,10 @@ Stack grows down (top of stack is higher memory)
 
 - [ ] constants in assembly
 - [ ] rewrite print subroutine with the constants
+- [ ] allow multiple files
+- [ ] heap allocation!
+- [ ] arrays - challenging because its bigger than 1 word. 
+- [ ] Strings!
 
 ## Plans for the vm
 - Focus on flushing out all the bugs in the codegen, and then focus on vm
@@ -207,10 +211,6 @@ Stack grows down (top of stack is higher memory)
   - [ ] implement IR
   - [ ] constant folding
   - [ ] dead code analysis
-- [ ] type casting
 - [ ] constants
-- [ ] allow multiple files
 - [ ] functions as parameters
-- [ ] arrays - challenging because its bigger than 1 word. 
-- [ ] Strings!
-- [ ] register based arithmetic instructions with mod
+- [ ] register based arithmetic instructions
