@@ -198,11 +198,11 @@ Stack grows down (top of stack is higher memory)
   - [x] lexer
   - [x] ast
     - [x] indexing
-  - [ ] parser
+  - [x] parser
     - [x] allow shorthand `var a[b]` where `b` has to be an int literal.
     - [x] allow `var a = [1, 2, 3, 4];`
     - [x] indexing
-    - [ ] type definitions
+    - [x] type definitions
   - [ ] type checker
     - [ ] handle type definitions
     - [ ] each element in a `char` or `bool` array may only take up 1 byte + padding
