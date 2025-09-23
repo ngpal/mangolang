@@ -197,12 +197,14 @@ Stack grows down (top of stack is higher memory)
 - [ ] stack allocated arrays
   - [x] lexer
   - [x] ast
-    - [k] indexing
+    - [x] indexing
   - [ ] parser
-    - [ ] allow shorthand `var a[b]` where `b` has to be an int literal.
-    - [ ] allow `var a = [1, 2, 3, 4];`
+    - [x] allow shorthand `var a[b]` where `b` has to be an int literal.
+    - [x] allow `var a = [1, 2, 3, 4];`
     - [ ] indexing
+    - [ ] type definitions
   - [ ] type checker
+    - [ ] handle type definitions
     - [ ] each element in a `char` or `bool` array may only take up 1 byte + padding
   - [ ] codegen
     - [ ] `var a\[4]`, evaluating `a` in `var x = a`, `x` would get a pointer to the array;
