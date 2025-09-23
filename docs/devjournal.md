@@ -199,14 +199,18 @@ Stack grows down (top of stack is higher memory)
   - [x] ast
     - [x] indexing
   - [x] parser
-    - [x] allow shorthand `var a[b]` where `b` has to be an int literal.
+    - [x] allow shorthand `var a[b: type]` where `b` has to be an int literal. ??? type?
     - [x] allow `var a = [1, 2, 3, 4];`
     - [x] indexing
     - [x] type definitions
-  - [ ] type checker
-    - [ ] handle type definitions
-    - [ ] each element in a `char` or `bool` array may only take up 1 byte + padding
+    - [x] disallow empty arrays
+  - [x] type checker
+    - [x] type checking for new ast nodes
+    - [x] handle type definitions
+    - [x] each element in a `char` or `bool` array may only take up 1 byte + padding
+    - [x] handle assigning to an index
   - [ ] codegen
+    - [ ] disallow empty arrays
     - [ ] `var a\[4]`, evaluating `a` in `var x = a`, `x` would get a pointer to the array;
 - [ ] strings!
 - [ ] allow multiple files
@@ -217,6 +221,7 @@ Stack grows down (top of stack is higher memory)
 
 - [ ] introduce `uint` type
 - [ ] allow only `uint`s to index
+- [ ] send all errors together instead of bubbling up
 - [ ] heap allocation!
   - [ ] simple bump allocator
 - [ ] vectors!
