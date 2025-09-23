@@ -1,10 +1,20 @@
+// fn hello() {
+// 	disp 'H'
+// 	disp 'e'
+// 	disp 'l'
+// 	disp 'l'
+// 	disp 'o'
+// 	disp ','
+// 	disp ' '
+// 	disp 'w'
+// 	disp 'o'
+// 	disp 'r'
+// 	disp 'l'
+// 	disp 'd'
+// 	disp '!'
+// }
+
 fn main() {
-	var a = 10;
-	loop {
-		disp a;
-		if a > 17 {
-			break;
-		}
-		a = a + 1;
-	}
+	var a = true as int;
+	disp a + 1;
 }

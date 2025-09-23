@@ -169,7 +169,24 @@ Stack grows down (top of stack is higher memory)
 - [x] found another bug, when a function is called, locals arent allocated, which makes `sp` dip down into the locals in some cases
 - [x] debugger TUI overhaul
 
-## Plan from now on
+# 23-09-2025
+- [x] char datatype
+  - [x] lexer/parser
+  - [x] single byte
+    - [x] allow comparisons
+    - [x] no arithmetic operations allowed on it
+  - [x] allow convertions to and from char to int
+    - [x] `as` keyword implementation
+
+    ### Conversion Rules
+    - `int as char` int & 0xF
+    - `bool as int` reinterpret
+    - `char as int` reinterpret
+    
+  - [ ] change functionality of disp to print one `char` w/o newline
+  - [ ] rewrite a `print` subroutine (move away from using `PRINT` and `MVCUR`, they're pretty high level for assembly instructions and I wanna move away from them)
+
+## Plans for the vm
 - Focus on flushing out all the bugs in the codegen, and then focus on vm
   - [ ] redesign the ISA, a lot of bloat instructions that can be avoided
   - [ ] move away from purely stack based design into more register/stack design
@@ -181,7 +198,6 @@ Stack grows down (top of stack is higher memory)
   - [ ] implement IR
   - [ ] constant folding
   - [ ] dead code analysis
-- [ ] char datatype
 - [ ] type casting
 - [ ] mod instruction
 - [ ] constants

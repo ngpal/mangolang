@@ -50,7 +50,7 @@ impl<'a> Debugger<'a> {
                 let vertical_chunks = Layout::default()
                     .direction(Direction::Vertical)
                     .constraints([
-                        Constraint::Length(VIDEO_HEIGHT as u16 + 4), // top panel height
+                        Constraint::Length(VIDEO_HEIGHT as u16 + 2), // top panel height
                         Constraint::Min(0), // bottom panel takes remaining space
                     ])
                     .split(area);
@@ -368,7 +368,7 @@ impl<'a> Debugger<'a> {
                 format!("CALL 0x{:04X}", addr16)
             }
             0x25 => {
-                size = 2;
+                size = 1;
                 "RET".to_string()
             } // ignore rel8 for simplicity
             0x30 => "ADD".into(),
@@ -384,7 +384,7 @@ impl<'a> Debugger<'a> {
             0x44 => "SHFT".into(),
             0x50 => {
                 // MOV rd, rs
-                size = 2;
+                size = 1;
                 let byte = self.vm.memory[addr + 1];
                 let rd = byte >> 4;
                 let rs = byte & 0xF;
