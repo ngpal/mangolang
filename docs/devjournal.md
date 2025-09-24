@@ -220,13 +220,19 @@ Stack grows down (top of stack is higher memory)
 
   - [x] codegen
     - [x] generate code for new ast kinds
-    - [x] `var a\[4]`, evaluating `a` in `var x = a`, `x` would get a pointer to the array;
+    - [x] `var a[4]`, evaluating `a` in `var x = a`, `x` would get a pointer to the array;
 
 ## HUGE BUG
 - The way `TypedAstNode::from_ast` works, everything gets an eval type of Unit passed down to it from statements getting unit.
   
-- [ ] each element in a `char` or `bool` array may only take up 1 byte + padding
-  - [ ] new instructions `LOADPB` and `STOREPB` for byte addressing
+# 25-09-2025
+- [x] each element in a `char` or `bool` array may only take up 1 byte + padding
+  - [x] new instructions `LOADPB` and `STOREPB` for byte addressing
+  - Whats the strategy?
+    - Allocate the stack first
+    - Compute each element
+    - Pack it in
+
 - [ ] strings!
 - [ ] allow multiple files
   - [ ] enforce main function on a assembler level not compiler level
@@ -234,6 +240,8 @@ Stack grows down (top of stack is higher memory)
     - [ ] new syntax for letting a function pass through the undefined functions check
   - [ ] new syntax for imports
 
+- [ ] stack balancing
+- [ ] inctroduce += syntax
 - [ ] introduce `uint` type
 - [ ] allow only `uint`s to index
 - [ ] send all errors together instead of bubbling up

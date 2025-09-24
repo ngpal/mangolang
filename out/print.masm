@@ -27,7 +27,7 @@ print:
 
     ; write the character
     PUSHR   r0
-    STOREP
+    STOREPB
 
     ; increment cursor by 1
     PUSH16  =CURSOR_POS

@@ -1,4 +1,12 @@
 fn main() {
-	var a = ['h', 'e', 'l', 'l', 'o', '!', '\n']
-	disp a[5];
+	var a = ['h', 'i', '!', '\n', ':', ')'];
+	var i = 0;
+	loop {
+		if i >= 9 {
+			break
+		}
+
+		disp a[i];
+		i = i + 1;
+	}
 }
