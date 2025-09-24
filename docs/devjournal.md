@@ -237,6 +237,13 @@ Stack grows down (top of stack is higher memory)
   - [x] must be mandatory for vardef, but not in function parameter context
 - [x] introduced a tiny optimization for labels and jumps
 - [ ] strings!
+  - [x] null terminated
+  - [x] lexer
+  - [x] parser
+  - [x] typechecker - pass as `[char]`
+  - [x] analyzer
+  - [x] codegen
+- [ ] passing in arrays/strings as parameters should pass the pointer instead?
 - [ ] allow multiple files
   - [ ] enforce main function on a assembler level not compiler level
   - [ ] allow only function headers to pass through for functions implemented in assembly

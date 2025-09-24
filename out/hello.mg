@@ -1,19 +1,17 @@
-fn hello() {
-	disp 'H'
-	disp 'e'
-	disp 'l'
-	disp 'l'
-	disp 'o'
-	disp ','
-	disp '\n'
-	disp 'w'
-	disp 'o'
-	disp 'r'
-	disp 'l'
-	disp 'd'
-	disp '!'
+fn print_string(str: [char]) {
+	var i = 0;
+	loop {
+		// null terminated
+		if str[i] as int == 0 {
+			break;
+		}
+
+		disp str[i];
+		i = i + 1;
+	}
 }
 
 fn main() {
-	hello()
+	var string = "hello!";
+	print_string(string)
 }
