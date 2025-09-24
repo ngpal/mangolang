@@ -1,21 +1,60 @@
 CALL main
 HALT
 
+print_string:
+PUSHR fp
+MOV fp, sp
+PUSH16 65534
+PUSHR fp
+ADD
+POPR sp
+PUSH16 0
+STORER [fp, 0]
+
+L0:
+LOADR [fp, 0]
+LOADR [fp, 6]
+CMP
+JLT L4
+JMP L2
+JMP L4
+
+L2:
+JMP L1
+
+L4:
+LOADR [fp, 8]
+LOADR [fp, 0]
+PUSH16 1
+MUL
+SUB
+LOADPB
+POPR r0
+CALL print
+LOADR [fp, 0]
+PUSH16 1
+ADD
+STORER [fp, 0]
+JMP L0
+
+L1:
+MOV sp, fp
+POPR fp
+RET
+
 main:
 PUSHR fp
 MOV fp, sp
-PUSH16 65532
+PUSH16 65534
 PUSHR fp
 ADD
 POPR sp
 PUSHR sp
-PUSH16 6
+PUSH16 8
 SUB
 POPR sp
 PUSHR sp
-PUSH16 6
-ADD
-PUSH16 1
+PUSH16 8
 ADD
 LOADR [sp, 2]
 PUSH16 0
@@ -59,38 +98,23 @@ MUL
 SUB
 PUSH16 41
 STOREPB
-STORER [fp, 0]
-PUSH16 0
-STORER [fp, -2]
-
-L0:
-LOADR [fp, -2]
-PUSH16 9
-CMP
-JLT L4
-JMP L2
-JMP L4
-
-L2:
-JMP L1
-JMP L4
-
-L4:
-LOADR [fp, 0]
-LOADR [fp, -2]
+LOADR [sp, 2]
+PUSH16 6
 PUSH16 1
 MUL
 SUB
-LOADPB
-POPR r0
-CALL print
-LOADR [fp, -2]
-PUSH16 1
+PUSH16 10
+STOREPB
+STORER [fp, 0]
+LOADR [fp, 0]
+PUSH16 6
+CALL print_string
+PUSHR sp
+PUSH16 2
+PUSH16 2
+MUL
 ADD
-STORER [fp, -2]
-JMP L0
-
-L1:
+POPR sp
 MOV sp, fp
 POPR fp
 RET

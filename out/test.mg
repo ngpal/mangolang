@@ -1,12 +1,16 @@
-fn main() {
-	var a = ['h', 'i', '!', '\n', ':', ')'];
+fn print_string(str: [char], len: int) {
 	var i = 0;
 	loop {
-		if i >= 9 {
-			break
+		if i >= len {
+			break;
 		}
 
-		disp a[i];
+		disp str[i];
 		i = i + 1;
 	}
+}
+
+fn main() {
+	var a = ['h', 'i', '!', '\n', ':', ')', '\n'];
+	print_string(a, 6);
 }

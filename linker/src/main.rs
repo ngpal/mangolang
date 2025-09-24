@@ -122,6 +122,8 @@ pub fn link_objects(objects: Vec<Vec<u8>>) -> LinkerResult<Vec<u8>> {
     // optionally append version or instruction length here if needed
     mbin.extend_from_slice(&instr_blob);
 
+    dbg!(symbols);
+
     Ok(mbin)
 }
 

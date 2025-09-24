@@ -233,6 +233,9 @@ Stack grows down (top of stack is higher memory)
     - Compute each element
     - Pack it in
 
+- [x] allow size ambigious array type definitions in function parameters
+  - [x] must be mandatory for vardef, but not in function parameter context
+- [x] introduced a tiny optimization for labels and jumps
 - [ ] strings!
 - [ ] allow multiple files
   - [ ] enforce main function on a assembler level not compiler level
