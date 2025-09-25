@@ -160,7 +160,6 @@ pub fn assemble_object(instrs: &Vec<Instr>) -> AssemblerResult<Vec<u8>> {
         match instr {
             Instr::Lbl(name) => {
                 let rec = symbols.insert(name, byte_pos);
-                dbg!(name, byte_pos);
                 if rec.is_some() && rec.unwrap() != 0xFFFF {
                     return Err(AssemblerError {
                         msg: format!("symbol {} is defined multiple times", name),
