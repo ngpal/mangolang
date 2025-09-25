@@ -272,13 +272,15 @@ main:
   RET
 ```
 
-  - [ ] update linker
+  - [x] new pseudo-instruction `DATA`
+  - [x] update linker
+  - [x] update binary format
+  - [x] update vm
+
+# 26-09-2025
   - [ ] update compiler
     - [x] write `@section text` above the instructions
     - [ ] use data section for strings
-  - [ ] update binary format
-  - [ ] update vm
-- [ ] passing in arrays as parameters should pass the pointer instead?
 - [ ] allow multiple files
   - [ ] enforce main function on a assembler level not compiler level
   - [ ] allow only function headers to pass through for functions implemented in assembly

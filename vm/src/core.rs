@@ -124,7 +124,7 @@ impl Vm {
         // address after end of program
         self.program_end = program.len() - 4;
 
-        self.allocate_locals()?;
+        // self.allocate_locals()?;
 
         Ok(())
     }
@@ -142,8 +142,8 @@ impl Vm {
 
             ip += Instr::from_u8(instr_byte)
                 .ok_or(RuntimeError(format!(
-                    "formatting issue on byte {} in the instructions",
-                    ip
+                    "formatting issue on byte {} (0x{:X}) in the instructions",
+                    ip, instr_byte
                 )))?
                 .byte_len();
         }

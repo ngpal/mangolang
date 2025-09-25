@@ -20,10 +20,10 @@ Instruction Set (Current)
 | 0x11   | STORE8   | addr8    | store to memory                                  |
 | 0x12   | LOADP    | -        | pops addr and pushes mem\[addr] to stack         |
 | 0x13   | STOREP   | -        | pops val and addr from stack, stores val at addr |
-| 0x14   | LOADR    | rs+imm   | push val @ \[rs + imm] |
-| 0x15   | STORER   | rd+imm   | \[rd + imm] = pop |
-| 0x16   | LOADPB   | -        | pops addr and pushes byte from addr to stack   |
-| 0x17   | STOREPB  | -        | pops addr and word, writes lower bytes to stack |
+| 0x14   | LOADR    | rs+imm   | push val @ \[rs + imm]                           |
+| 0x15   | STORER   | rd+imm   | \[rd + imm] = pop                                |
+| 0x16   | LOADPB   | -        | pops addr and pushes byte from addr to stack     |
+| 0x17   | STOREPB  | -        | pops addr and word, writes lower bytes to stack  |
 
 ---
 
@@ -50,7 +50,7 @@ Instruction Set (Current)
 | 0x33   | DIV      | -        | integer division       |
 | 0x34   | NEG      | -        | negate integer         |
 | 0x35   | CMP      | -        | compare two ints       |
-| 0x35   | MOD      | -        | integer modulus        |
+| 0x36   | MOD      | -        | integer modulus        |
 
 ---
 

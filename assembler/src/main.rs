@@ -15,6 +15,7 @@ use crate::{
 pub enum RelocType {
     Abs16 = 0,
     Rel8 = 1, // relative 8-bit displacement (e.g. jmp/jlt/jgt/jeq)
+    Data = 2,
 }
 
 #[derive(Debug, Clone)]
@@ -33,6 +34,7 @@ pub struct Symbol {
 type Symbols = Vec<Symbol>;
 type Relocs = Vec<Reloc>;
 
+#[derive(Debug)]
 pub struct Object {
     pub instrs: Vec<Instr>,
     pub data: Vec<(String, String)>,
@@ -96,7 +98,7 @@ impl Object {
                 as u16;
             reloctab_bytes.extend(offset.to_le_bytes());
             reloctab_bytes.extend(sym_index.to_le_bytes());
-            reloctab_bytes.push(*kind as u8);
+            reloctab_bytes.push(dbg!(*kind as u8));
         }
         out.extend((reloctab_bytes.len() as u16).to_le_bytes());
 
@@ -234,7 +236,7 @@ pub fn assemble_object(assembly: &Assembly) -> AssemblerResult<Vec<u8>> {
                 relocs.push(Reloc {
                     offset: byte_pos + 1,
                     sym_name: name.to_string(),
-                    kind: RelocType::Abs16,
+                    kind: RelocType::Data,
                 });
                 out_instr.push(Instr::Push(0xFFFF));
             }
@@ -256,7 +258,7 @@ pub fn assemble_object(assembly: &Assembly) -> AssemblerResult<Vec<u8>> {
         byte_pos += value.len() as u16
     }
 
-    Ok(Object {
+    Ok(dbg!(Object {
         instrs: out_instr,
         data: assembly.data.clone(),
         symbols: symbols
@@ -267,7 +269,7 @@ pub fn assemble_object(assembly: &Assembly) -> AssemblerResult<Vec<u8>> {
             })
             .collect(),
         relocs,
-    }
+    })
     .to_bin())
 }
 

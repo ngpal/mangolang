@@ -345,6 +345,8 @@ impl<'a> Debugger<'a> {
                 let offset = self.vm.memory[addr + 2] as i8;
                 format!("STORER [{}, {}]", Vm::reg_name(reg), offset)
             }
+            0x16 => "LOADPB".into(),
+            0x17 => "STOREPB".into(),
             0x20 => {
                 size = 2;
                 format!("JMP8 {}", self.vm.memory[addr + 1] as i8)
@@ -377,6 +379,7 @@ impl<'a> Debugger<'a> {
             0x33 => "DIV".into(),
             0x34 => "NEG".into(),
             0x35 => "CMP".into(),
+            0x36 => "MOD".into(),
             0x40 => "NOT".into(),
             0x41 => "AND".into(),
             0x42 => "OR".into(),

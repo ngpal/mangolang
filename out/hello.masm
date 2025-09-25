@@ -1,34 +1,36 @@
 @section data
 
-msg = "hello, world!\n"
+msg = "I love my girlfriend <3\n"
 
 @section text
 
 main: 
 	DATA      msg
 	PUSH16    0
-	POPR      r1         ; store the index in r1
+	POPR      r2         ; store the index in r2
 
 loop:
 	; duplicate the address
-
-	LOADR     [SP, -2]   
-	PUSHR     r1
-	LOADP
+	LOADR     [SP, 2]   
+	PUSHR     r2
+	ADD
+	LOADPB
 
 	; duplicate the character
-	LOADR     [SP, -2]   
+	LOADR     [SP, 2]   
 	PUSH16    0
 	CMP
 	JEQ       end
 
 	; prints the character at r0
-	PUSHR     r0
+	POPR      r0
 	CALL      print      
 
-	PUSHR     r1
+	PUSHR     r2
 	PUSH16    1
-	POPR      r1
+	ADD
+	POPR      r2
+
 	JMP       loop
 
 end:
