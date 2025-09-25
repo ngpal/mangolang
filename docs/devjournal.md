@@ -278,9 +278,11 @@ main:
   - [x] update vm
 
 # 26-09-2025
-  - [ ] update compiler
+  - [x] update compiler
     - [x] write `@section text` above the instructions
-    - [ ] use data section for strings
+    - [x] generate arrays in reverse so that the indeces goes up
+    - [x] use data section for strings
+
 - [ ] allow multiple files
   - [ ] enforce main function on a assembler level not compiler level
   - [ ] allow only function headers to pass through for functions implemented in assembly

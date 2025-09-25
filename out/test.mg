@@ -1,7 +1,7 @@
-fn print_string(str: [char], len: int) {
+fn print_string(str: [char]) {
 	var i = 0;
 	loop {
-		if i >= len {
+		if str[i] == 0 as char {
 			break;
 		}
 
@@ -12,5 +12,5 @@ fn print_string(str: [char], len: int) {
 
 fn main() {
 	var a = "Hello, World!\n";
-	print_string(a, 13);
+	print_string(a);
 }
