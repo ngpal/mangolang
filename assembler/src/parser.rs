@@ -4,6 +4,16 @@ use computils::instr::Instr;
 
 use crate::error::{AssemblerError, AssemblerResult};
 
+enum Section {
+    Text,
+    Data,
+}
+
+pub struct Assembly {
+    pub text: Vec<Instr>,
+    pub data: Vec<(String, String)>,
+}
+
 // extract constants from lines like: @define CONST = 42
 fn extract_constants(input: &str) -> HashMap<String, String> {
     let mut macros = HashMap::new();
@@ -22,7 +32,7 @@ fn extract_constants(input: &str) -> HashMap<String, String> {
     macros
 }
 
-fn substitute_constants<'a>(s: &'a str, macros: &HashMap<String, String>) -> String {
+fn substitute_constants(s: &str, macros: &HashMap<String, String>) -> String {
     let mut result = s.to_string();
     for (name, val) in macros {
         let key = format!("={}", name);
@@ -115,17 +125,93 @@ fn parse_label(token: Option<&str>, lineno: usize) -> AssemblerResult<String> {
         .to_string())
 }
 
-pub fn parse_assembly(input: &str) -> AssemblerResult<Vec<Instr>> {
+fn unescape_string(s: &str) -> String {
+    let mut result = String::new();
+    let mut chars = s.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            if let Some(&next) = chars.peek() {
+                let escaped = match next {
+                    'n' => '\n',
+                    '\\' => '\\',
+                    '"' => '"',
+                    other => other, // unknown escapes treated literally
+                };
+                result.push(escaped);
+                chars.next(); // consume the escaped character
+            } else {
+                // lone backslash at end, keep as is
+                result.push('\\');
+            }
+        } else {
+            result.push(c);
+        }
+    }
+
+    result
+}
+
+pub fn parse_assembly(input: &str) -> AssemblerResult<Assembly> {
     let consts = extract_constants(input);
     let mut instrs = Vec::new();
+    let mut cur_sec = Section::Text;
+    let mut data = HashMap::new();
 
     for (lineno, line) in input.lines().enumerate() {
         let line = line.trim();
         let line = substitute_constants(line, &consts);
 
         // skip blank lines and comments
-        if line.is_empty() || line.starts_with(';') || line.starts_with("@") {
+        if line.is_empty() || line.starts_with(';') || line.starts_with("@define") {
             continue;
+        }
+
+        // section switches
+        if line.starts_with("@section") {
+            match line.strip_prefix("@section").unwrap().trim() {
+                "data" => {
+                    cur_sec = Section::Data;
+                    continue;
+                }
+                "text" => {
+                    cur_sec = Section::Text;
+                    continue;
+                }
+                other => {
+                    return Err(AssemblerError {
+                        msg: format!("unknown section `{}`", other),
+                        line: Some(lineno + 1),
+                    });
+                }
+            }
+        }
+
+        if let Section::Data = cur_sec {
+            if let Some((label, string)) = line.split_once('=') {
+                let label = label.trim().to_string();
+                let string = string.trim();
+
+                // enforce quotes
+                if !(string.starts_with('"') && string.ends_with('"') && string.len() >= 2) {
+                    return Err(AssemblerError {
+                        msg: format!("data string for `{}` must be quoted", label),
+                        line: Some(lineno + 1),
+                    });
+                }
+
+                // strip quotes
+                let raw = &string[1..string.len() - 1];
+                let mut string = unescape_string(raw);
+                string.push('\0');
+                data.insert(label, string);
+                continue;
+            } else {
+                return Err(AssemblerError {
+                    msg: "expected `label = \"string\"` in data section".into(),
+                    line: Some(lineno + 1),
+                });
+            }
         }
 
         // label definition
@@ -265,6 +351,9 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Vec<Instr>> {
             "print" => Instr::Print,
             "mvcur" => Instr::MvCur(parse_imm8(Some(rest), lineno)? as i8),
 
+            // data
+            "data" => Instr::Data(parse_label(Some(rest), lineno)?),
+
             _ => {
                 return Err(AssemblerError {
                     msg: format!("unknown mnemonic `{}`", mnemonic),
@@ -276,5 +365,8 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Vec<Instr>> {
         instrs.push(instr);
     }
 
-    Ok(instrs)
+    Ok(Assembly {
+        text: instrs,
+        data: data.into_iter().collect(),
+    })
 }

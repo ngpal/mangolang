@@ -7,7 +7,7 @@ use std::{collections::HashMap, fs, io};
 
 use crate::{
     error::{AssemblerError, AssemblerResult},
-    parser::parse_assembly,
+    parser::{Assembly, parse_assembly},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -35,20 +35,24 @@ type Relocs = Vec<Reloc>;
 
 pub struct Object {
     pub instrs: Vec<Instr>,
+    pub data: Vec<(String, String)>,
     pub symbols: Symbols,
     pub relocs: Relocs, // assembler-time relocations with byte offsets
 }
 
-const OBJ_FILE_VERSION: u16 = 1;
+const OBJ_FILE_VERSION: u16 = 2;
 
 impl Object {
     /// Serialize object into binary:
-    /// [ "MOBJ" (4) ][version u16][instr_bytes_len u16]
+    /// [ "MOBJ" (4) ][version u16]
+    /// [instr_bytes_len u16][data_bytes_len u16]
     /// [symtable_len u16][reloctable_len u16]
-    /// [instr_bytes...][symtable...][reloctable...]
+    /// [instr_bytes...][data_bytes...]
+    /// [symtable...][reloctable...]
     ///
     /// symtable: repeated (name bytes, 0u8, u16 addr)
     /// reloctable: repeated (u16 offset, u16 sym_index, u8 kind)
+
     pub fn to_bin(&self) -> Vec<u8> {
         let mut out = Vec::new();
 
@@ -59,6 +63,13 @@ impl Object {
         // instructions bytes
         let instr_bytes = gen_bin(&self.instrs);
         out.extend((instr_bytes.len() as u16).to_le_bytes());
+
+        // data bytes
+        let mut data_bytes: Vec<u8> = Vec::new();
+        for (_, value) in &self.data {
+            data_bytes.extend(value.bytes());
+        }
+        out.extend((data_bytes.len() as u16).to_le_bytes());
 
         // symtable bytes (name\0 + u16 addr)
         let mut symtab_bytes = Vec::new();
@@ -91,6 +102,7 @@ impl Object {
 
         // payload
         out.extend(instr_bytes);
+        out.extend(data_bytes);
         out.extend(symtab_bytes);
         out.extend(reloctab_bytes);
 
@@ -137,7 +149,8 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             | Instr::JmpLbl(_)
             | Instr::JltLbl(_)
             | Instr::JgtLbl(_)
-            | Instr::JeqLbl(_) => {
+            | Instr::JeqLbl(_)
+            | Instr::Data(_) => {
                 unreachable!("gen_bin called on unresolved symbolic instruction")
             }
             Instr::Loadr(rd, ofst) => vec![0x14, *rd, *ofst as u8],
@@ -150,16 +163,16 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
     code
 }
 
-pub fn assemble_object(instrs: &Vec<Instr>) -> AssemblerResult<Vec<u8>> {
+pub fn assemble_object(assembly: &Assembly) -> AssemblerResult<Vec<u8>> {
     let mut out_instr = Vec::new();
     let mut byte_pos: u16 = 0;
     let mut symbols = HashMap::new();
     let mut relocs = Vec::new();
 
-    for instr in instrs {
+    for instr in &assembly.text {
         match instr {
             Instr::Lbl(name) => {
-                let rec = symbols.insert(name, byte_pos);
+                let rec = symbols.insert(name.clone(), byte_pos);
                 if rec.is_some() && rec.unwrap() != 0xFFFF {
                     return Err(AssemblerError {
                         msg: format!("symbol {} is defined multiple times", name),
@@ -175,11 +188,12 @@ pub fn assemble_object(instrs: &Vec<Instr>) -> AssemblerResult<Vec<u8>> {
                 let target_addr = match symbols.get(name) {
                     // Back reference
                     Some(addr) => {
-                        (*addr as isize - (byte_pos as isize + instr.byte_len() as isize)) as i8
+                        (*addr as isize - (byte_pos as isize + instr.clone().byte_len() as isize))
+                            as i8
                     }
                     // Forward reference
                     None => {
-                        symbols.insert(name, 0xFFFF);
+                        symbols.insert(name.to_string(), 0xFFFF);
                         relocs.push(Reloc {
                             offset: byte_pos + 1,
                             sym_name: name.to_string(),
@@ -204,7 +218,7 @@ pub fn assemble_object(instrs: &Vec<Instr>) -> AssemblerResult<Vec<u8>> {
                 let target_addr = match symbols.get(name) {
                     Some(addr) => addr,
                     None => {
-                        symbols.insert(name, 0xFFFF);
+                        symbols.insert(name.to_string(), 0xFFFF);
                         &0xFFFF
                     }
                 };
@@ -216,13 +230,35 @@ pub fn assemble_object(instrs: &Vec<Instr>) -> AssemblerResult<Vec<u8>> {
                 out_instr.push(Instr::Call(*target_addr));
             }
 
+            Instr::Data(name) => {
+                relocs.push(Reloc {
+                    offset: byte_pos + 1,
+                    sym_name: name.to_string(),
+                    kind: RelocType::Abs16,
+                });
+                out_instr.push(Instr::Push(0xFFFF));
+            }
+
             concrete => out_instr.push(concrete.clone()),
         }
         byte_pos += instr.byte_len() as u16;
     }
 
+    for (name, value) in &assembly.data {
+        let rec = symbols.insert(name.clone(), byte_pos);
+        if rec.is_some() && rec.unwrap() != 0xFFFF {
+            return Err(AssemblerError {
+                msg: format!("symbol {} is defined multiple times", name),
+                line: None,
+            });
+        }
+
+        byte_pos += value.len() as u16
+    }
+
     Ok(Object {
         instrs: out_instr,
+        data: assembly.data.clone(),
         symbols: symbols
             .iter()
             .map(|(name, val)| Symbol {

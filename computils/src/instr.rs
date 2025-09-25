@@ -41,19 +41,20 @@ pub enum Instr {
     Print,
     MvCur(i8),
 
-    // label pseudo instructions
+    // pseudo instructions
     Lbl(String),
     CallLbl(String),
     JmpLbl(String),
     JltLbl(String),
     JgtLbl(String),
     JeqLbl(String),
+    Data(String), // translates to PUSH16 addr
 }
 
 impl Instr {
     pub fn byte_len(&self) -> usize {
         match self {
-            Instr::Push(_) => 3,
+            Instr::Push(_) | Self::Data(_) => 3,
             Instr::Load(_) => 2,
             Instr::Store(_) => 2,
             Instr::Jmp(_) => 2,

@@ -4,6 +4,7 @@
 @define NEWLINE      = 0xA
 @define VIDEO_WIDTH  = 40
 
+@section text
 
 print:
     ; put current cursor position on the top of the stack

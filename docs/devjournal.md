@@ -236,7 +236,7 @@ Stack grows down (top of stack is higher memory)
 - [x] allow size ambigious array type definitions in function parameters
   - [x] must be mandatory for vardef, but not in function parameter context
 - [x] introduced a tiny optimization for labels and jumps
-- [ ] strings!
+- [x] strings!
   - [x] null terminated
   - [x] lexer
   - [x] parser
@@ -245,8 +245,39 @@ Stack grows down (top of stack is higher memory)
   - [x] codegen
 
 - [ ] store strings in data section of binary
-  - [ ] introduce sections into the assembly format
+  - [x] introduce sections into the assembly format
+    - [x] `@section data` and `@section text` in the assembly
+    - [x] data section needs to only handle strings for now.
+
+## Assembly file structure
+```
+; constants
+@define X = 42
+@define Y = 0x2E
+
+; data section allow labelled and unlabelled data
+@section data
+msg = "Hello, world!\n"
+
+; text section
+@section text
+
+start:
+  CALL main
+  HALT
+main:
+  PUSH16 msg
+  POPR   r0
+  CALL   print
+  RET
+```
+
+  - [ ] update linker
+  - [ ] update compiler
+    - [x] write `@section text` above the instructions
+    - [ ] use data section for strings
   - [ ] update binary format
+  - [ ] update vm
 - [ ] passing in arrays as parameters should pass the pointer instead?
 - [ ] allow multiple files
   - [ ] enforce main function on a assembler level not compiler level
@@ -255,6 +286,8 @@ Stack grows down (top of stack is higher memory)
   - [ ] new syntax for imports
 
 - [ ] stack balancing
+  - [ ] assigning to `_` discards the value
+  - [ ] statements that have `eval_type != Unit` can be considered the same as `var _ = stmt;`
 - [ ] inctroduce += syntax
 - [ ] introduce `uint` type
 - [ ] allow only `uint`s to index
