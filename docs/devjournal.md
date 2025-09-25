@@ -243,7 +243,11 @@ Stack grows down (top of stack is higher memory)
   - [x] typechecker - pass as `[char]`
   - [x] analyzer
   - [x] codegen
-- [ ] passing in arrays/strings as parameters should pass the pointer instead?
+
+- [ ] store strings in data section of binary
+  - [ ] introduce sections into the assembly format
+  - [ ] update binary format
+- [ ] passing in arrays as parameters should pass the pointer instead?
 - [ ] allow multiple files
   - [ ] enforce main function on a assembler level not compiler level
   - [ ] allow only function headers to pass through for functions implemented in assembly

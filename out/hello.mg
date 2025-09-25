@@ -12,6 +12,5 @@ fn print_string(str: [char]) {
 }
 
 fn main() {
-	var string = "hello!";
-	print_string(string)
+	print_string("this won't work all the time! (strings straight in an argument)")
 }
