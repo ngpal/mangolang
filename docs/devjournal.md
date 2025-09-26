@@ -283,6 +283,15 @@ main:
     - [x] generate arrays in reverse so that the indeces goes up
     - [x] use data section for strings
 
+## Plans for the vm
+- Focus on flushing out all the bugs in the codegen, and then focus on vm
+  - [ ] redesign the ISA, a lot of bloat instructions that can be avoided
+  - [ ] move away from purely stack based design into more register/stack design
+  - [ ] ideally take inspiration from or entirely emulate an alreay existing CPU of similar power
+  - [ ] Seperate the VM project from the rest of the compiler
+  - [ ] Macros in the assembly? (inspiriation from the jdh video)
+
+
 - [ ] allow multiple files
   - [ ] enforce main function on a assembler level not compiler level
   - [ ] allow only function headers to pass through for functions implemented in assembly
@@ -300,14 +309,6 @@ main:
   - [ ] simple bump allocator
 - [ ] vectors!
 - [ ] floats?
-
-## Plans for the vm
-- Focus on flushing out all the bugs in the codegen, and then focus on vm
-  - [ ] redesign the ISA, a lot of bloat instructions that can be avoided
-  - [ ] move away from purely stack based design into more register/stack design
-  - [ ] ideally take inspiration from or entirely emulate an alreay existing CPU of similar power
-  - [ ] Seperate the VM project from the rest of the compiler
-  - [ ] Macros in the assembly? (inspiriation from the jdh video)
 
 - [ ] implement an IR for base level optimizations
   - [ ] implement IR
