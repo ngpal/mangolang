@@ -98,7 +98,7 @@ impl Object {
                 as u16;
             reloctab_bytes.extend(offset.to_le_bytes());
             reloctab_bytes.extend(sym_index.to_le_bytes());
-            reloctab_bytes.push(dbg!(*kind as u8));
+            reloctab_bytes.push(*kind as u8);
         }
         out.extend((reloctab_bytes.len() as u16).to_le_bytes());
 
@@ -258,7 +258,7 @@ pub fn assemble_object(assembly: &Assembly) -> AssemblerResult<Vec<u8>> {
         byte_pos += value.len() as u16
     }
 
-    Ok(dbg!(Object {
+    Ok(Object {
         instrs: out_instr,
         data: assembly.data.clone(),
         symbols: symbols
@@ -269,7 +269,7 @@ pub fn assemble_object(assembly: &Assembly) -> AssemblerResult<Vec<u8>> {
             })
             .collect(),
         relocs,
-    })
+    }
     .to_bin())
 }
 
