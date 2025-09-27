@@ -1,19 +1,17 @@
-use std::cmp;
-
 use crate::{
     error::{RuntimeError, RuntimeResult},
-    instr::Instr,
+    instr::{Format, Opcode, parse_instr},
 };
 
 const MBIN_MAGIC: &[u8; 4] = b"MBIN";
-pub const MEM_SIZE: usize = 0x10000;
-const MAX_PROGRAM_SIZE: usize = 32 * 1024; // 32KB
+const MAX_PROGRAM_SIZE: usize = 0x1000;
 
+pub const MEM_SIZE: usize = 0x10000;
 pub const VIDEO_WIDTH: usize = 40;
 pub const VIDEO_HEIGHT: usize = 12;
 pub const VIDEO_BASE: usize = 0x8000;
-pub const VIDEO_SIZE: usize = VIDEO_WIDTH * VIDEO_HEIGHT;
-pub const CURSOR_ADDR: usize = VIDEO_BASE + VIDEO_SIZE;
+// pub const VIDEO_SIZE: usize = VIDEO_WIDTH * VIDEO_HEIGHT;
+// pub const CURSOR_ADDR: usize = VIDEO_BASE + VIDEO_SIZE;
 pub const INFO_HEIGHT: usize = 5;
 
 #[derive(Default)]
@@ -23,11 +21,11 @@ pub struct Flags {
     pub v: bool,
 }
 
-pub struct Registers([u16; 6]); // 4 general purpose, sp, fp
+pub struct Registers([u16; 8]); // 6 general purpose, sp, fp
 
 impl Registers {
     pub fn new() -> Self {
-        Self([0, 0, 0, 0, 0xFFFE, 0xFFFE]) // Stack and fram pointers are at the bottom
+        Self([0, 0, 0, 0, 0, 0, 0xFFFE, 0xFFFE]) // Stack and fram pointers are at the bottom
     }
 
     // general purpose
@@ -60,14 +58,6 @@ impl Registers {
         self.0[4] = val;
     }
 
-    pub fn inc_sp(&mut self, amt: u16) {
-        self.0[4] = self.0[4].wrapping_add(amt);
-    }
-
-    pub fn dec_sp(&mut self, amt: u16) {
-        self.0[4] = self.0[4].wrapping_sub(amt);
-    }
-
     // frame pointer
     pub fn get_fp(&self) -> u16 {
         self.0[5]
@@ -83,6 +73,7 @@ pub struct Vm {
     pub flags: Flags,
     pub registers: Registers,
     pub ip: u16,
+    pub lr: u16,
     pub program_end: usize,
 }
 
@@ -93,6 +84,7 @@ impl Vm {
             flags: Flags::default(),
             registers: Registers::new(),
             ip: 0,
+            lr: 0,
             program_end: 0,
         }
     }
@@ -124,38 +116,6 @@ impl Vm {
         // address after end of program
         self.program_end = program.len() - 4;
 
-        // self.allocate_locals()?;
-
-        Ok(())
-    }
-
-    fn allocate_locals(&mut self) -> RuntimeResult<()> {
-        let mut max_local = 0;
-        let mut ip = 0;
-        let program_start = 0; // memory index 0 now contains first instruction
-
-        while ip < self.program_end {
-            let instr_byte = self.memory[program_start + ip];
-            if instr_byte == Instr::Store8 as u8 {
-                max_local = cmp::max(max_local, self.memory[program_start + ip + 1]);
-            }
-
-            ip += Instr::from_u8(instr_byte)
-                .ok_or(RuntimeError(format!(
-                    "formatting issue on byte {} (0x{:X}) in the instructions",
-                    ip, instr_byte
-                )))?
-                .byte_len();
-        }
-
-        let space_needed = 2 * (max_local as usize + 1);
-        if (self.registers.get_sp() as usize) < space_needed + self.program_end {
-            return Err(RuntimeError(
-                "memory overflow - too many local variables".into(),
-            ));
-        }
-
-        self.registers.dec_sp(space_needed as u16);
         Ok(())
     }
 
@@ -178,26 +138,6 @@ impl Vm {
         Ok(())
     }
 
-    fn push_word(&mut self, val: u16) -> RuntimeResult<()> {
-        if self.registers.get_sp() < 2 {
-            return Err(RuntimeError("stack overflow".into()));
-        }
-
-        self.write_word(self.registers.get_sp(), val)?;
-        self.registers.dec_sp(2);
-        Ok(())
-    }
-
-    fn pop_word(&mut self) -> RuntimeResult<u16> {
-        if (self.registers.get_sp() as usize) + 2 > MEM_SIZE {
-            return Err(RuntimeError("stack underflow".into()));
-        }
-
-        self.registers.inc_sp(2);
-        let val = self.read_word(self.registers.get_sp());
-        Ok(val)
-    }
-
     fn read_byte(&self, addr: u16) -> u8 {
         self.memory[addr as usize]
     }
@@ -213,20 +153,14 @@ impl Vm {
         Ok(())
     }
 
-    fn fetch_byte(&mut self) -> u8 {
-        let ret = self.read_byte(self.ip);
-        self.ip += 1;
-        ret
-    }
-
     fn fetch_word(&mut self) -> u16 {
         let ret = self.read_word(self.ip);
         self.ip += 2;
         ret
     }
 
-    fn jump_rel(&mut self, cond: bool) -> Result<bool, RuntimeError> {
-        let offset = self.fetch_byte() as i8 as isize;
+    fn jump_rel(&mut self, cond: bool, offset: isize) -> Result<(), RuntimeError> {
+        let offset = offset;
         let base = self.ip as isize;
         if cond {
             let new_ip = base.wrapping_add(offset);
@@ -238,192 +172,183 @@ impl Vm {
             self.ip = new_ip as u16;
         }
 
-        Ok(false)
+        Ok(())
     }
 
     // Return halt signal
     pub fn exec_instruction(&mut self) -> RuntimeResult<bool> {
-        let byte = self.fetch_byte();
-        let instr = Instr::from_u8(byte)
-            .ok_or(RuntimeError(format!("unknown instruction: 0x{:2X}", byte)))?;
+        let instr_word = self.fetch_word();
+        let instr = parse_instr(instr_word)?;
 
-        match instr {
-            Instr::Push16 => {
-                let word = self.fetch_word();
-                self.push_word(word)?;
-            }
-            Instr::Halt => return Ok(true),
-            Instr::Add
-            | Instr::Sub
-            | Instr::Mul
-            | Instr::Div
-            | Instr::Cmp
-            | Instr::Mod
-            | Instr::And
-            | Instr::Or
-            | Instr::Xor
-            | Instr::Shft => {
-                let right = self.pop_word()?;
-                let left = self.pop_word()?;
+        match instr.format {
+            Format::Rfmt { reserved, rd, rs } => {
+                // Could be Arith, Logical, Shift or Move
+                let (result, overflow) = match (instr.opcode, reserved) {
+                    // add
+                    (Opcode::Arith, 0) => self
+                        .registers
+                        .get_reg(rd)?
+                        .overflowing_add(self.registers.get_reg(rs)?),
 
-                let (result, overflow) = match instr {
-                    Instr::Add => left.overflowing_add(right),
-                    Instr::Sub | Instr::Cmp => left.overflowing_sub(right),
-                    Instr::Mul => left.overflowing_mul(right),
-                    Instr::Div => {
-                        if right == 0 {
-                            return Err(RuntimeError("division by zero".into()));
-                        }
-                        let (res, overflow) = (left as i16).overflowing_div(right as i16);
-                        (res as u16, overflow)
-                    }
-                    Instr::Mod => {
-                        if right == 0 {
-                            return Err(RuntimeError("modulo by zero".into()));
-                        }
-                        let (res, overflow) = (left as i16).overflowing_rem(right as i16);
-                        (res as u16, overflow)
-                    }
-                    Instr::And => (left & right, false),
-                    Instr::Or => (left | right, false),
-                    Instr::Xor => (left ^ right, false),
-                    Instr::Shft => {
-                        let sh = right as i16;
+                    // sub
+                    (Opcode::Arith, 1) => self
+                        .registers
+                        .get_reg(rd)?
+                        .overflowing_add(!self.registers.get_reg(rs)? + 1),
 
-                        let amt = sh.unsigned_abs() as usize;
-                        let amt = if amt >= 16 { 15 } else { amt };
-
-                        let word_bits = 16;
-                        let res = if sh >= 0 {
-                            if amt as u32 >= word_bits {
-                                0
-                            } else {
-                                left << (amt as u32)
-                            }
-                        } else if (-sh) as u32 >= word_bits {
-                            0
-                        } else {
-                            left >> ((-sh) as u32)
-                        };
+                    // and
+                    (Opcode::Logical, 0) => {
+                        let res = self.registers.get_reg(rd)? & self.registers.get_reg(rs)?;
                         (res, false)
                     }
-                    _ => unreachable!(),
+
+                    // or
+                    (Opcode::Logical, 1) => {
+                        let res = self.registers.get_reg(rd)? | self.registers.get_reg(rs)?;
+                        (res, false)
+                    }
+
+                    // xor
+                    (Opcode::Logical, 2) => {
+                        let res = self.registers.get_reg(rd)? ^ self.registers.get_reg(rs)?;
+                        (res, false)
+                    }
+
+                    // shl
+                    (Opcode::Shift, 0) => {
+                        let res = self.registers.get_reg(rd)? << self.registers.get_reg(rs)?;
+                        (res, false)
+                    }
+
+                    // shr
+                    (Opcode::Shift, 1) => {
+                        let res = self.registers.get_reg(rd)? >> self.registers.get_reg(rs)?;
+                        (res, false)
+                    }
+
+                    // mov
+                    (Opcode::Mov, 0) => {
+                        let res = self.registers.get_reg(rs)?;
+                        (res, false)
+                    }
+
+                    _ => {
+                        return Err(RuntimeError(format!(
+                            "unknown R-format instruction {:4X}",
+                            instr_word
+                        )));
+                    }
                 };
 
-                if !(matches!(instr, Instr::Cmp)) {
-                    self.push_word(result)?;
-                }
-
                 self.set_flags(result, overflow);
+                self.registers.set_reg(rd, result)?
             }
-            Instr::Neg => {
-                let operand = self.pop_word()?;
-                self.push_word((!operand).wrapping_add(1))?
+            Format::Ifmt { rd, imm } => {
+                // addi, subi, andi, ori, xori, shli, shri, movi
+                match instr.opcode {
+                    Opcode::AddI => self
+                        .registers
+                        .set_reg(rd, self.registers.get_reg(rd)? + imm as u16)?,
+                    Opcode::SubI => self
+                        .registers
+                        .set_reg(rd, self.registers.get_reg(rd)? + !(imm as u16) + 1)?,
+                    Opcode::AndI => self
+                        .registers
+                        .set_reg(rd, self.registers.get_reg(rd)? & imm as u16)?,
+                    Opcode::OrI => self
+                        .registers
+                        .set_reg(rd, self.registers.get_reg(rd)? | imm as u16)?,
+                    Opcode::XorI => self
+                        .registers
+                        .set_reg(rd, self.registers.get_reg(rd)? ^ imm as u16)?,
+                    Opcode::ShlI => self
+                        .registers
+                        .set_reg(rd, self.registers.get_reg(rd)? << imm as u16)?,
+                    Opcode::ShrI => self
+                        .registers
+                        .set_reg(rd, self.registers.get_reg(rd)? >> imm as u16)?,
+                    Opcode::MovI => self.registers.set_reg(rd, imm as u16)?,
+                    code => unreachable!("ifmt, opcode {:?}", code),
+                }
             }
-            Instr::Store8 => {
-                let offset = self.fetch_byte() as u16;
-                let addr = self.registers.get_fp() - offset * 2;
-                let val = self.pop_word()?;
-                self.write_word(addr, val)?;
+            Format::Mfmt { rd, rs, imm } => {
+                // ldw, stw, ldb, stb
+                match instr.opcode {
+                    Opcode::Ldw => self
+                        .registers
+                        .set_reg(rd, self.read_word(self.registers.get_reg(rs)? + imm as u16))?,
+                    Opcode::Stw => self.write_word(
+                        self.registers.get_reg(rd)? + imm as u16,
+                        self.registers.get_reg(rs)?,
+                    )?,
+                    Opcode::Ldb => self.registers.set_reg(
+                        rd,
+                        self.read_byte(self.registers.get_reg(rs)? + imm as u16) as u16,
+                    )?,
+                    Opcode::Stb => self.write_byte(
+                        self.registers.get_reg(rd)? + imm as u16,
+                        self.registers.get_reg(rs)? as u8,
+                    )?,
+                    code => unreachable!("mfmt, opcode {:?}", code),
+                }
             }
-            Instr::Load8 => {
-                let offset = self.fetch_byte() as u16;
-                let addr = self.registers.get_fp() - offset * 2;
-                self.push_word(self.read_word(addr))?;
-            }
-            Instr::Jmp8 => return self.jump_rel(true),
-            Instr::Jlt8 => return self.jump_rel(self.flags.n),
-            Instr::Jgt8 => return self.jump_rel(!self.flags.z && !self.flags.n),
-            Instr::Jeq8 => return self.jump_rel(self.flags.z),
-            Instr::Not => {
-                let val = self.pop_word()?;
-                self.push_word(!val)?;
-            }
-            Instr::Mov => {
-                let inp = self.fetch_byte();
+            Format::Bfmt { cond, imm } => {
+                // Could only be jump instructions
+                match (instr.opcode, cond) {
+                    // jmp
+                    (Opcode::J, 0) => self.jump_rel(true, imm as i8 as isize)?,
 
-                let rd = inp >> 4;
-                let rs = inp & 0xF;
+                    // jeq
+                    (Opcode::J, 1) => self.jump_rel(self.flags.z == true, imm as i8 as isize)?,
 
-                self.registers.set_reg(rd, self.registers.get_reg(rs)?)?;
-            }
-            Instr::Pushr => {
-                let rs = self.fetch_byte();
-                self.push_word(self.registers.get_reg(rs)?)?;
-            }
-            Instr::Popr => {
-                let rd = self.fetch_byte();
-                let word = self.pop_word()?;
+                    // jlt
+                    (Opcode::J, 2) => self.jump_rel(self.flags.n == true, imm as i8 as isize)?,
 
-                self.registers.set_reg(rd, word)?;
-            }
-            Instr::Loadp => {
-                let addr = self.pop_word()?;
-                self.push_word(self.read_word(addr))?;
-            }
-            Instr::Storep => {
-                let val = self.pop_word()?;
-                let addr = self.pop_word()?;
-                self.write_word(addr, val)?;
-            }
-            Instr::Loadpb => {
-                let addr = self.pop_word()?;
-                self.push_word(self.read_byte(addr) as u16)?;
-            }
-            Instr::Storepb => {
-                let val = self.pop_word()? as u8;
-                let addr = self.pop_word()?;
-                self.write_byte(addr, val)?;
-            }
-            Instr::Call => {
-                let addr = self.fetch_word();
-                self.push_word(self.ip)?;
-                self.ip = addr;
-            }
-            Instr::Ret => {
-                let addr = self.pop_word()?;
-                self.ip = addr;
-            }
-            Instr::Print => {
-                let ch = self.pop_word()? as u8;
-
-                // read cursor position
-                let mut pos = self.read_word(CURSOR_ADDR as u16) as usize;
-
-                if ch == b'\n' {
-                    // move cursor to start of next line
-                    let row = pos / VIDEO_WIDTH;
-                    let next_row = (row + 1) % VIDEO_HEIGHT;
-                    pos = next_row * VIDEO_WIDTH;
-                } else if pos < VIDEO_SIZE {
-                    self.memory[VIDEO_BASE + pos] = ch;
-                    // advance cursor
-                    pos += 1;
-                    if pos >= VIDEO_SIZE {
-                        pos = 0;
+                    // jgt
+                    (Opcode::J, 3) => {
+                        self.jump_rel(!self.flags.z && !self.flags.n, imm as i8 as isize)?
                     }
+                    code => unreachable!("bfmt, opcode {:?}", code),
+                }
+            }
+            Format::Efmt { reserved } => {
+                let imm = self.fetch_word();
+                // Could only be jump word, or call
+                match (instr.opcode, reserved) {
+                    // jmpw
+                    (Opcode::JW, 0) => self.jump_rel(true, imm as i16 as isize)?,
+
+                    // jeqw
+                    (Opcode::JW, 1) => self.jump_rel(self.flags.z == true, imm as i16 as isize)?,
+
+                    // jltw
+                    (Opcode::JW, 2) => self.jump_rel(self.flags.n == true, imm as i16 as isize)?,
+
+                    // jgtw
+                    (Opcode::JW, 3) => {
+                        self.jump_rel(!self.flags.z && !self.flags.n, imm as i16 as isize)?
+                    }
+
+                    // call
+                    (Opcode::Call, 0) => {
+                        self.lr = self.ip;
+                        self.ip = imm;
+                    }
+                    code => unreachable!("efmt, opcode {:?}", code),
+                }
+            }
+            Format::Sfmt { reserved } => {
+                if reserved != 0 {
+                    unreachable!("sfmt, invalid reserved {:?}", instr)
                 }
 
-                self.write_word(CURSOR_ADDR as u16, pos as u16)?;
-            }
-            Instr::MvCur => {
-                let offset = self.fetch_byte() as i8;
-                let cur = self.read_word(CURSOR_ADDR as u16) as i16;
-                let new_cur = (cur + offset as i16).clamp(0, (VIDEO_SIZE - 1) as i16);
-                self.write_word(CURSOR_ADDR as u16, new_cur as u16)?;
-            }
-            Instr::Loadr => {
-                let reg_byte = self.fetch_byte();
-                let reg = self.registers.get_reg(reg_byte)?;
-                let offset = self.fetch_byte() as i8;
-                self.push_word(self.read_word((reg as i8 + offset) as u16))?
-            }
-            Instr::Storer => {
-                let reg_byte = self.fetch_byte();
-                let reg = self.registers.get_reg(reg_byte)?;
-                let offset = self.fetch_byte() as i8;
-                let word = self.pop_word()?;
-                self.write_word((reg as i8 + offset) as u16, word)?;
+                // Could only be ret, noop, halt
+                match instr.opcode {
+                    Opcode::Ret => self.ip = self.lr,
+                    Opcode::Noop => {}
+                    Opcode::Halt => return Ok(true),
+                    code => unreachable!("sfmt, opcode {:?}", code),
+                }
             }
         }
 
@@ -441,12 +366,29 @@ impl Vm {
         self.flags.v = overflow;
     }
 
-    pub fn reg_name(reg: u8) -> String {
-        match reg {
-            4 => "sp".into(),
-            5 => "fp".into(),
-            n => format!("r{}", n),
-        }
+    // disassembly + skip next byte
+    pub fn disassemble_at(&self, addr: u16) -> (String, bool) {
+        let instr_raw = self.read_word(addr);
+        let mut extra = false;
+
+        let disassembly = if let Ok(instr) = parse_instr(instr_raw) {
+            if matches!(instr.format, Format::Efmt { .. }) {
+                extra = true;
+            }
+
+            if let Some(mut disassembly) = instr.disassemble() {
+                if extra {
+                    disassembly += &format!(" 0x{:4X}", self.read_word(addr + 2));
+                }
+                disassembly
+            } else {
+                format!("DB 0x{:4X}", instr_raw)
+            }
+        } else {
+            format!("DB 0x{:4X}", instr_raw)
+        };
+
+        (disassembly, extra)
     }
 
     pub fn disassemble(&self, start: usize, end: usize) -> Vec<String> {
@@ -454,121 +396,13 @@ impl Vm {
         let mut output = Vec::new();
 
         while addr < end && addr < self.program_end {
-            let byte = self.memory[addr];
-            let instr = Instr::from_u8(byte);
-            let mut size = 1;
-            let line = match instr {
-                Some(Instr::Push16) => {
-                    if addr + 2 < self.memory.len() {
-                        let imm =
-                            u16::from_le_bytes([self.memory[addr + 1], self.memory[addr + 2]]);
-                        size = 3;
-                        format!("0x{:04X}: PUSH16 {}", addr, imm)
-                    } else {
-                        format!("0x{:04X}: PUSH16 ???", addr)
-                    }
-                }
-                Some(Instr::Halt) => format!("0x{:04X}: HALT", addr),
-                Some(Instr::Add) => format!("0x{:04X}: ADD", addr),
-                Some(Instr::Sub) => format!("0x{:04X}: SUB", addr),
-                Some(Instr::Mul) => format!("0x{:04X}: MUL", addr),
-                Some(Instr::Div) => format!("0x{:04X}: DIV", addr),
-                Some(Instr::Neg) => format!("0x{:04X}: NEG", addr),
-                Some(Instr::Cmp) => format!("0x{:04X}: CMP", addr),
-                Some(Instr::Mod) => format!("0x{:04X}: MOD", addr),
-                Some(Instr::Not) => format!("0x{:04X}: NOT", addr),
-                Some(Instr::And) => format!("0x{:04X}: AND", addr),
-                Some(Instr::Or) => format!("0x{:04X}: OR", addr),
-                Some(Instr::Xor) => format!("0x{:04X}: XOR", addr),
-                Some(Instr::Shft) => format!("0x{:04X}: SHFT", addr),
-                Some(Instr::Load8) => {
-                    size = 2;
-                    format!("0x{:04X}: LOAD8 {}", addr, self.memory[addr + 1])
-                }
-                Some(Instr::Store8) => {
-                    size = 2;
-                    format!("0x{:04X}: STORE8 {}", addr, self.memory[addr + 1])
-                }
-                Some(Instr::Loadp) => format!("0x{:04X}: LOADP", addr),
-                Some(Instr::Storep) => format!("0x{:04X}: STOREP", addr),
-                Some(Instr::Loadpb) => format!("0x{:04X}: LOADPB", addr),
-                Some(Instr::Storepb) => format!("0x{:04X}: STOREPB", addr),
-                Some(Instr::Loadr) => {
-                    size = 3;
-                    let reg = self.memory[addr + 1];
-                    let offset = self.memory[addr + 2] as i8;
-                    format!(
-                        "0x{:04X}: LOADR [{}, {}{}]",
-                        addr,
-                        Self::reg_name(reg),
-                        if offset >= 0 { "+" } else { "" },
-                        offset
-                    )
-                }
-                Some(Instr::Storer) => {
-                    size = 3;
-                    let reg = self.memory[addr + 1];
-                    let offset = self.memory[addr + 2] as i8;
-                    format!(
-                        "0x{:04X}: STORER [{}, {}]",
-                        addr,
-                        Self::reg_name(reg),
-                        offset
-                    )
-                }
-                Some(Instr::Jmp8) => {
-                    size = 2;
-                    format!("0x{:04X}: JMP8 {}", addr, self.memory[addr + 1] as i8)
-                }
-                Some(Instr::Jlt8) => {
-                    size = 2;
-                    format!("0x{:04X}: JLT8 {}", addr, self.memory[addr + 1] as i8)
-                }
-                Some(Instr::Jgt8) => {
-                    size = 2;
-                    format!("0x{:04X}: JGT8 {}", addr, self.memory[addr + 1] as i8)
-                }
-                Some(Instr::Jeq8) => {
-                    size = 2;
-                    format!("0x{:04X}: JEQ8 {}", addr, self.memory[addr + 1] as i8)
-                }
-                Some(Instr::Call) => {
-                    size = 3;
-                    let target = u16::from_le_bytes([self.memory[addr + 1], self.memory[addr + 2]]);
-                    format!("0x{:04X}: CALL 0x{:04X}", addr, target)
-                }
-                Some(Instr::Ret) => format!("0x{:04X}: RET", addr),
-                Some(Instr::Mov) => {
-                    size = 2;
-                    let byte = self.memory[addr + 1];
-                    let rd = byte >> 4;
-                    let rs = byte & 0xF;
-                    format!(
-                        "0x{:04X}: MOV {} {}",
-                        addr,
-                        Self::reg_name(rd),
-                        Self::reg_name(rs)
-                    )
-                }
-                Some(Instr::Pushr) => {
-                    size = 2;
-                    format!("0x{:04X}: PUSHR r{}", addr, self.memory[addr + 1])
-                }
-                Some(Instr::Popr) => {
-                    size = 2;
-                    format!("0x{:04X}: POPR r{}", addr, self.memory[addr + 1])
-                }
-                Some(Instr::Print) => format!("0x{:04X}: PRINT", addr),
-                Some(Instr::MvCur) => {
-                    size = 2;
-                    format!("0x{:04X}: MVCUR {}", addr, self.memory[addr + 1] as i8)
-                }
-                // Some(_) => format!("0x{:04X}: <instr 0x{:02X}>", addr, byte),
-                None => format!("0x{:04X}: DB 0x{:02X}", addr, byte),
-            };
+            let (disassembly, skip_next) = self.disassemble_at(addr as u16);
+            output.push(disassembly);
 
-            output.push(line);
-            addr += size;
+            if skip_next {
+                addr += 2
+            }
+            addr += 2;
         }
 
         output

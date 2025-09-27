@@ -1,7 +1,8 @@
 # Instruction Set Architecture
 
-- 7 general puprose registers r0-r6
-- r7 is stack pointer
+- 6 general puprose registers r0-r5
+- r6 is stack pointer
+- r7 is frame pointer
 - special registers: instruction pointer, link register, flag register (nzcv)
 - 16-bit word
 - 16-bit fixed length instructions
@@ -108,16 +109,16 @@
 
 | Mnemonic | Opcode | Reserved    | Description              |
 | -------- | ------ | ----------- | ------------------------ |
-| JMP      | 10010  | 00000000000 | Unconditional jump       |
-| JEQ      | 10010  | 00000000001 | Jump if equal            |
-| JLT      | 10010  | 00000000010 | Jump if less than        |
-| JGT      | 10010  | 00000000011 | Jump if greater than     |
+| JMPW     | 10010  | 00000000000 | Unconditional jump       |
+| JEQW     | 10010  | 00000000001 | Jump if equal            |
+| JLTW     | 10010  | 00000000010 | Jump if less than        |
+| JGTW     | 10010  | 00000000011 | Jump if greater than     |
 | CALL     | 10011  | 00000000000 | Jump to imm16 setting LR |
 
 ### S-Type
 
 | Mnemonic | Opcode | Reserved    | Description  |
 | -------- | ------ | ----------- | ------------ |
+| RET      | 10100  | 00000000000 | Jump to LR   |
 | NOOP     | 00000  | 00000000000 | Do nothing   |
 | HALT     | 11111  | 00000000000 | Halt program |
-| RET      | 10100  | 00000000000 | Jump to LR   |

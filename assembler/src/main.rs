@@ -2,12 +2,11 @@ mod error;
 mod parser;
 
 use clap::{Parser, command};
-use computils::instr::Instr;
 use std::{collections::HashMap, fs, io};
 
 use crate::{
     error::{AssemblerError, AssemblerResult},
-    parser::{Assembly, parse_assembly},
+    parser::{Assembly, Instr, parse_assembly},
 };
 
 #[derive(Debug, Clone, Copy)]

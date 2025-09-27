@@ -198,12 +198,13 @@ impl<'a> Debugger<'a> {
 
         // simple scan to find addresses of 2 instructions before IP
         while addr < self.vm.memory.len() && collected < 2 {
-            let (_, size) = self.disasm_at(addr);
-            if addr + size > self.vm.ip as usize {
+            let (_, size) = self.vm.disassemble_at(addr as u16);
+            if addr + (size as usize) > self.vm.ip as usize {
                 break;
             }
+
             context_addrs.push(addr);
-            addr += size;
+            addr += size as usize;
             if addr >= self.vm.ip as usize {
                 collected += 1;
             }
@@ -222,7 +223,7 @@ impl<'a> Debugger<'a> {
         let mut addr = start_addr;
 
         while lines.len() < max_lines as usize && addr < self.vm.memory.len() {
-            let (instr, size) = self.disasm_at(addr);
+            let (instr, size) = self.vm.disassemble_at(addr as u16);
             let is_current = addr == self.vm.ip as usize;
 
             let style = if is_current {
@@ -242,7 +243,7 @@ impl<'a> Debugger<'a> {
             )]);
 
             lines.push(line);
-            addr += size;
+            addr += size as usize;
         }
 
         Paragraph::new(Text::from(lines))
@@ -308,110 +309,6 @@ impl<'a> Debugger<'a> {
             .wrap(Wrap { trim: false })
     }
 
-    fn disasm_at(&mut self, addr: usize) -> (String, usize) {
-        let op = self.vm.memory.get(addr).copied().unwrap_or(0);
-        let mut size = 1;
-        let instr_str = match op {
-            0x01 => {
-                // PUSH16
-                let imm = if addr + 2 < self.vm.memory.len() {
-                    u16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]])
-                } else {
-                    0
-                };
-                size = 3;
-                format!("PUSH16 {}", imm)
-            }
-            0x0F => "HALT".into(),
-            0x10 => {
-                size = 2;
-                format!("LOAD8 {}", self.vm.memory[addr + 1])
-            }
-            0x11 => {
-                size = 2;
-                format!("STORE8 {}", self.vm.memory[addr + 1])
-            }
-            0x12 => "LOADP".into(),
-            0x13 => "STOREP".into(),
-            0x14 => {
-                size = 3;
-                let reg = self.vm.memory[addr + 1];
-                let offset = self.vm.memory[addr + 2] as i8;
-                format!("LOADR [{}, {}]", Vm::reg_name(reg), offset)
-            }
-            0x15 => {
-                size = 3;
-                let reg = self.vm.memory[addr + 1];
-                let offset = self.vm.memory[addr + 2] as i8;
-                format!("STORER [{}, {}]", Vm::reg_name(reg), offset)
-            }
-            0x16 => "LOADPB".into(),
-            0x17 => "STOREPB".into(),
-            0x20 => {
-                size = 2;
-                format!("JMP8 {}", self.vm.memory[addr + 1] as i8)
-            }
-            0x21 => {
-                size = 2;
-                format!("JLT8 {}", self.vm.memory[addr + 1] as i8)
-            }
-            0x22 => {
-                size = 2;
-                format!("JGT8 {}", self.vm.memory[addr + 1] as i8)
-            }
-            0x23 => {
-                size = 2;
-                format!("JEQ8 {}", self.vm.memory[addr + 1] as i8)
-            }
-            0x24 => {
-                size = 3;
-                let addr16 =
-                    u16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
-                format!("CALL 0x{:04X}", addr16)
-            }
-            0x25 => {
-                size = 1;
-                "RET".to_string()
-            } // ignore rel8 for simplicity
-            0x30 => "ADD".into(),
-            0x31 => "SUB".into(),
-            0x32 => "MUL".into(),
-            0x33 => "DIV".into(),
-            0x34 => "NEG".into(),
-            0x35 => "CMP".into(),
-            0x36 => "MOD".into(),
-            0x40 => "NOT".into(),
-            0x41 => "AND".into(),
-            0x42 => "OR".into(),
-            0x43 => "XOR".into(),
-            0x44 => "SHFT".into(),
-            0x50 => {
-                // MOV rd, rs
-                size = 2;
-                let byte = self.vm.memory[addr + 1];
-                let rd = byte >> 4;
-                let rs = byte & 0xF;
-                format!("MOV {} {}", Vm::reg_name(rd), Vm::reg_name(rs))
-            }
-            0x51 => {
-                size = 2;
-                format!("PUSHR {}", Vm::reg_name(self.vm.memory[addr + 1]))
-            }
-            0x52 => {
-                size = 2;
-                format!("POPR {}", Vm::reg_name(self.vm.memory[addr + 1]))
-            }
-            0x60 => "PRINT".into(),
-            0x61 => {
-                size = 2;
-                format!("MVCUR {}", self.vm.memory[addr + 1] as i8)
-            }
-            _ => format!("DB 0x{:02X}", op),
-        };
-
-        (instr_str, size)
-    }
-
     fn render_memory_registers(&mut self) -> Paragraph<'_> {
         let mut lines: Vec<Line> = Vec::new();
 
@@ -427,10 +324,12 @@ impl<'a> Debugger<'a> {
             Span::raw(format!("r0={:04X}  ", r(0))),
             Span::raw(format!("r1={:04X}  ", r(1))),
             Span::raw(format!("r2={:04X}  ", r(2))),
-            Span::raw(format!("r3={:04X}", r(3))),
+            Span::raw(format!("r3={:04X}  ", r(3))),
+            Span::raw(format!("r4={:04X}  ", r(4))),
+            Span::raw(format!("r5={:04X}", r(5))),
         ]));
 
-        // line 2: SP, FP, IP, flags
+        // line 2: SP, FP, IP, LR, flags
         lines.push(Line::from(vec![
             Span::raw("SP="),
             Span::styled(format!("{:04X}  ", sp), Style::default().fg(Color::Cyan)),
@@ -442,6 +341,11 @@ impl<'a> Debugger<'a> {
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw("LR="),
+            Span::styled(
+                format!("{:04X}  ", self.vm.lr),
+                Style::default().fg(Color::Blue),
             ),
             Span::raw("Z="),
             Span::styled(
@@ -463,9 +367,9 @@ impl<'a> Debugger<'a> {
         lines.push(Line::from("")); // empty line
 
         // get instruction range
-        let (_, instr_size) = self.disasm_at(ip as usize);
+        let (_, skip_next) = self.vm.disassemble_at(ip);
         let instr_start = ip as usize;
-        let instr_end = instr_start + instr_size;
+        let instr_end = instr_start + (skip_next as usize);
 
         // memory hex dump
         let mem = &self.vm.memory;
