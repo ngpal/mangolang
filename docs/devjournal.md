@@ -322,8 +322,7 @@ main:
 # 27-09-2025
 
 - [x] Implement in VM core
-- [ ] `MOVW` for a word into a register or `MOVHI` for writing to the high bytes of the register
-- [ ] Update assembler
+- [ ] Tear down and rewrite assembler
 - [ ] Seperate the VM project from the rest of the compiler
 - [ ] Macros in the assembly? (inspiriation from the jdh video)
 
@@ -352,3 +351,4 @@ main:
 - [ ] constants
 - [ ] functions as parameters
 - [ ] register based arithmetic instructions
+- [ ] `MOVW` for a word into a register or `MOVHI` for writing to the high bytes of the register

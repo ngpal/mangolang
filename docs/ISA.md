@@ -49,7 +49,8 @@
 | Bits    | Purpose  |
 | ------- | -------- |
 | 15:11   | opcode   |
-| 10:0    | reserved |
+| 10:8    | rd       |
+| 7:0     | reserved |
 | +1 word | extra    |
 
 ### S-Type (Single)
@@ -105,20 +106,21 @@
 | JLT      | 10001  | 10   | Jump if less than    |
 | JGT      | 10001  | 11   | Jump if greater than |
 
-### E-Type (imm16)
+### E-Type (rd, imm16)
 
-| Mnemonic | Opcode | Reserved    | Description              |
-| -------- | ------ | ----------- | ------------------------ |
-| JMPW     | 10010  | 00000000000 | Unconditional jump       |
-| JEQW     | 10010  | 00000000001 | Jump if equal            |
-| JLTW     | 10010  | 00000000010 | Jump if less than        |
-| JGTW     | 10010  | 00000000011 | Jump if greater than     |
-| CALL     | 10011  | 00000000000 | Jump to imm16 setting LR |
+| Mnemonic | Opcode | rd  | Reserved | Description              |
+| -------- | ------ | --- | -------- | ------------------------ |
+| JMPW     | 10010  | 000 | 00000000 | Unconditional jump       |
+| JEQW     | 10010  | 000 | 00000001 | Jump if equal            |
+| JLTW     | 10010  | 000 | 00000010 | Jump if less than        |
+| JGTW     | 10010  | 000 | 00000011 | Jump if greater than     |
+| CALL     | 10011  | 000 | 00000000 | Jump to imm16 setting LR |
+| MOVIW    | 10100  | xxx | 00000011 | Move to rd               |
 
 ### S-Type
 
 | Mnemonic | Opcode | Reserved    | Description  |
 | -------- | ------ | ----------- | ------------ |
-| RET      | 10100  | 00000000000 | Jump to LR   |
+| RET      | 10101  | 00000000000 | Jump to LR   |
 | NOOP     | 00000  | 00000000000 | Do nothing   |
 | HALT     | 11111  | 00000000000 | Halt program |

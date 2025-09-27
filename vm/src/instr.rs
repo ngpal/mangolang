@@ -21,6 +21,7 @@ pub enum Opcode {
     Stb = 0x10,
     J = 0x11,
     JW = 0x12,
+    MovW = 0x15,
     Call = 0x13,
     Ret = 0x14,
     Noop = 0x00,
@@ -49,7 +50,8 @@ impl Opcode {
             0x11 => Opcode::J,
             0x12 => Opcode::JW,
             0x13 => Opcode::Call,
-            0x14 => Opcode::Ret,
+            0x14 => Opcode::MovW,
+            0x15 => Opcode::Ret,
             0x00 => Opcode::Noop,
             0x1F => Opcode::Halt,
             _ => return Err(RuntimeError(format!("unknown opcode 0x{:2X}", op))),
@@ -72,25 +74,6 @@ pub struct Instr {
 }
 
 impl Instr {
-    // pub fn to_raw(&self) -> u16 {
-    //     let mut instr = self.opcode as u16;
-
-    //     instr |= match self.format {
-    //         Format::Rfmt { reserved, rd, rs } => {
-    //             (reserved as u16) << 5 | (rd as u16) << 10 | (rs as u16) << 13
-    //         }
-    //         Format::Ifmt { rd, imm } => (rd as u16) << 5 | (imm as u16) << 8,
-    //         Format::Mfmt { rd, rs, imm } => {
-    //             (rd as u16) << 5 | (rs as u16) << 8 | (imm as u16) << 11
-    //         }
-    //         Format::Bfmt { cond, imm } => (cond as u16) << 5 | (imm as u16) << 8,
-    //         Format::Efmt { reserved } => reserved << 5,
-    //         Format::Sfmt { reserved } => reserved << 5,
-    //     };
-
-    //     instr
-    // }
-
     pub fn disassemble(&self) -> Option<String> {
         use Format::*;
         use Opcode::*;
@@ -149,7 +132,7 @@ impl Instr {
             },
 
             // --- E-Type ---
-            (JW, Efmt { reserved }) => match reserved {
+            (JW, Efmt { reserved, .. }) => match reserved {
                 0 => "JMPW".to_string(),
                 1 => "JEQW".to_string(),
                 2 => "JLTW".to_string(),
@@ -157,6 +140,7 @@ impl Instr {
                 _ => return None,
             },
             (Call, Efmt { .. }) => "CALL".to_string(),
+            (MovW, Efmt { rd, .. }) => format!("MOVIW {}", reg_name(*rd)),
 
             // --- S-Type ---
             (Ret, Sfmt { .. }) => "RET".to_string(),
@@ -176,7 +160,7 @@ pub enum Format {
     Ifmt { rd: u8, imm: u8 },
     Mfmt { rd: u8, rs: u8, imm: u8 },
     Bfmt { cond: u8, imm: u8 },
-    Efmt { reserved: u16 },
+    Efmt { rd: u8, reserved: u16 },
     Sfmt { reserved: u16 },
 }
 
@@ -210,7 +194,8 @@ pub fn parse_instr(instr: u16) -> RuntimeResult<Instr> {
             imm: get_bits(instr, 0, 7) as u8,
         },
         0x12 | 0x13 => Format::Efmt {
-            reserved: get_bits(instr, 0, 10),
+            rd: get_bits(instr, 8, 10) as u8,
+            reserved: get_bits(instr, 0, 7),
         },
         0x00 | 0xFF | 0x14 => Format::Sfmt {
             reserved: get_bits(instr, 0, 10),

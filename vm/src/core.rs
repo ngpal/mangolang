@@ -311,9 +311,9 @@ impl Vm {
                     code => unreachable!("bfmt, opcode {:?}", code),
                 }
             }
-            Format::Efmt { reserved } => {
+            Format::Efmt { rd, reserved } => {
                 let imm = self.fetch_word();
-                // Could only be jump word, or call
+                // Could only be jump word, movw, or call
                 match (instr.opcode, reserved) {
                     // jmpw
                     (Opcode::JW, 0) => self.jump_rel(true, imm as i16 as isize)?,
@@ -334,6 +334,12 @@ impl Vm {
                         self.lr = self.ip;
                         self.ip = imm;
                     }
+
+                    // movw
+                    (Opcode::MovW, 0) => {
+                        self.registers.set_reg(rd, imm)?;
+                    }
+
                     code => unreachable!("efmt, opcode {:?}", code),
                 }
             }
