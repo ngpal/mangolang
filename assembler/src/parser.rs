@@ -1,438 +1,195 @@
-use std::collections::HashMap;
-
-use crate::error::{AssemblerError, AssemblerResult};
+use chumsky::prelude::*;
 
 #[derive(Clone, Debug)]
 pub enum Mnemonic {
-    Halt,
-    Push(u16),
-    Load(u8),
-    Store(u8),
-    Loadp,
-    Storep,
-    Loadpb,
-    Storepb,
-    Loadr(u8, i8),
-    Storer(u8, i8),
-
-    Jmp(i8),
-    Jlt(i8),
-    Jgt(i8),
-    Jeq(i8),
-
-    Call(u16),
-    Ret,
-
-    Cmp,
+    // R-Type instructions
     Add,
     Sub,
-    Mul,
-    Div,
-    Neg,
-    Mod,
-
-    Not,
-
     And,
     Or,
     Xor,
-    Shft,
+    Shl,
+    Shr,
+    Mov,
 
-    Mov(u8, u8),
-    Pushr(u8),
-    Popr(u8),
+    // I-Type instructions
+    AddI,
+    SubI,
+    AndI,
+    OrI,
+    XorI,
+    ShlI,
+    ShrI,
+    MovI,
 
-    Print,
-    MvCur(i8),
+    // M-Type instructions
+    Ldw,
+    Stw,
+    Ldb,
+    Stb,
 
-    // pseudo instructions
+    // B-Type instructions
+    Jmp,
+    Jeq,
+    Jlt,
+    Jgt,
+
+    // E-Type instructions
+    JmpW,
+    JeqW,
+    JltW,
+    JgtW,
+    Call,
+
+    // S-Type instructions
+    Ret,
+    NoOp,
+    Halt,
+
+    // Pseudo instructions for labels
     Lbl(String),
     CallLbl(String),
     JmpLbl(String),
     JltLbl(String),
     JgtLbl(String),
     JeqLbl(String),
-    Data(String), // translates to PUSH16 addr
+    JmpWLbl(String),
+    JltWLbl(String),
+    JgtWLbl(String),
+    JeqWLbl(String),
+    Data(u8, String), // (rd, label) - load data address into register rd
 }
 
-#[derive(Debug)]
-pub enum Format {
-    Rfmt { reserved: u8, rd: u8, rs: u8 },
-    Ifmt { rd: u8, imm: u8 },
-    Mfmt { rd: u8, rs: u8, imm: u8 },
-    Bfmt { cond: u8, imm: u8 },
-    Efmt { reserved: u16 },
-    Sfmt { reserved: u16 },
-}
-
-pub struct Instr {
-    mnemonic: Mnemonic,
-    format: Format,
-}
-
-enum Section {
+pub enum Section {
     Text,
     Data,
 }
 
+#[derive(Debug, Clone)]
 pub struct Assembly {
     pub text: Vec<Instr>,
     pub data: Vec<(String, String)>,
 }
 
-// extract constants from lines like: @define CONST = 42
-fn extract_constants(input: &str) -> HashMap<String, String> {
-    let mut macros = HashMap::new();
-    for line in input.lines() {
-        let line = line.trim();
-        if let Some(rest) = line.strip_prefix("@define") {
-            if let Some((name, val)) = rest.split_once('=') {
-                let name = name.trim();
-                let val = val.trim();
-                if !name.is_empty() && !val.is_empty() {
-                    macros.insert(name.to_string(), val.to_string());
-                }
-            }
-        }
-    }
-    macros
+#[derive(Debug, Clone)]
+pub enum Instr {
+    R {
+        mnemonic: String,
+        rd: u8,
+        rs: u8,
+    },
+    I {
+        mnemonic: String,
+        rd: u8,
+        imm: i8,
+    },
+    M {
+        mnemonic: String,
+        rd: u8,
+        rs: u8,
+        imm: u8,
+    },
+    B {
+        mnemonic: String,
+        cond: u8,
+        imm: u8,
+    },
+    E {
+        mnemonic: String,
+        imm: u16,
+    },
+    S {
+        mnemonic: String,
+    },
+    Pseudo {
+        mnemonic: String,
+        args: Vec<String>,
+    },
 }
 
-fn substitute_constants(s: &str, macros: &HashMap<String, String>) -> String {
-    let mut result = s.to_string();
-    for (name, val) in macros {
-        let key = format!("={}", name);
-        result = result.replace(&key, val);
-    }
-    result
-}
-
-fn parse_reg(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
-    let tok = token.ok_or_else(|| AssemblerError {
-        msg: "missing register operand".into(),
-        line: Some(lineno + 1),
-    })?;
-
-    match &tok.to_ascii_lowercase().as_str()[..2] {
-        "r0" => Ok(0),
-        "r1" => Ok(1),
-        "r2" => Ok(2),
-        "r3" => Ok(3),
-        "r4" | "sp" => Ok(4),
-        "r5" | "fp" => Ok(5),
-        _ => Err(AssemblerError {
-            msg: format!("invalid register `{}`", tok),
-            line: Some(lineno + 1),
-        }),
-    }
-}
-
-fn parse_imm8(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
-    let tok = token.ok_or_else(|| AssemblerError {
-        msg: "missing 8-bit immediate".into(),
-        line: Some(lineno + 1),
-    })?;
-
-    let val = if let Some(hex) = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
-        u8::from_str_radix(hex, 16)
-    } else {
-        tok.parse::<u8>()
-    };
-
-    val.map_err(|_| AssemblerError {
-        msg: format!("invalid 8-bit immediate `{}`", tok),
-        line: Some(lineno + 1),
+fn register<'a>() -> impl Parser<'a, &'a str, u8> {
+    text::ident().map(|s: &str| match s.to_ascii_uppercase().as_str() {
+        "R0" => 0,
+        "R1" => 1,
+        "R2" => 2,
+        "R3" => 3,
+        "R4" => 4,
+        "R5" => 5,
+        "SP" | "R6" => 6,
+        "FP" | "R7" => 7,
+        _ => panic!("invalid register: {}", s),
     })
 }
 
-fn parse_imm8_signed(token: Option<&str>, lineno: usize) -> AssemblerResult<i8> {
-    let tok = token.ok_or_else(|| AssemblerError {
-        msg: "missing signed 8-bit immediate".into(),
-        line: Some(lineno + 1),
-    })?;
+fn imm8<'a>() -> impl Parser<'a, &'a str, i8> {
+    // hex: starts with 0x
+    let hex = just("0x")
+        .ignore_then(text::int(16))
+        .map(|s: &str| i8::from_str_radix(s, 16).unwrap());
 
-    let val = if let Some(hex) = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
-        // parse as u8 first, then reinterpret as i8
-        u8::from_str_radix(hex, 16).map(|n| n as i8)
-    } else {
-        tok.parse::<i8>()
-    };
+    // decimal
+    let dec = text::int(10).map(|s: &str| s.parse::<i8>().unwrap());
 
-    val.map_err(|_| AssemblerError {
-        msg: format!("invalid signed 8-bit immediate `{}`", tok),
-        line: Some(lineno + 1),
-    })
+    hex.or(dec)
 }
 
-fn parse_imm16(token: Option<&str>, lineno: usize) -> AssemblerResult<u16> {
-    let tok = token.ok_or_else(|| AssemblerError {
-        msg: "missing 16-bit immediate".into(),
-        line: Some(lineno + 1),
-    })?;
+fn imm16<'a>() -> impl Parser<'a, &'a str, u16> {
+    let hex = just("0x")
+        .ignore_then(text::int(16))
+        .map(|s: &str| u16::from_str_radix(s, 16).unwrap());
 
-    let val = if let Some(hex) = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
-        u16::from_str_radix(hex, 16)
-    } else {
-        tok.parse::<u16>()
-    };
+    let dec = text::int(10).map(|s: &str| s.parse::<u16>().unwrap());
 
-    val.map_err(|_| AssemblerError {
-        msg: format!("invalid 16-bit immediate `{}`", tok),
-        line: Some(lineno + 1),
-    })
+    hex.or(dec)
 }
 
-fn parse_label(token: Option<&str>, lineno: usize) -> AssemblerResult<String> {
-    Ok(token
-        .ok_or_else(|| AssemblerError {
-            msg: "missing label operand".into(),
-            line: Some(lineno + 1),
-        })?
-        .to_string())
+fn label<'a>() -> impl Parser<'a, &'a str, String> {
+    text::ident().map(|s: &str| s.to_string())
 }
 
-fn unescape_string(s: &str) -> String {
-    let mut result = String::new();
-    let mut chars = s.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        if c == '\\' {
-            if let Some(&next) = chars.peek() {
-                let escaped = match next {
-                    'n' => '\n',
-                    '\\' => '\\',
-                    '"' => '"',
-                    other => other, // unknown escapes treated literally
-                };
-                result.push(escaped);
-                chars.next(); // consume the escaped character
-            } else {
-                // lone backslash at end, keep as is
-                result.push('\\');
-            }
-        } else {
-            result.push(c);
-        }
-    }
-
-    result
+fn parse_const<'a>() -> impl Parser<'a, &'a str, String> {
+    just("=").ignore_then(text::ident().map(|s: &str| s.to_string()))
 }
 
-pub fn parse_assembly(input: &str) -> AssemblerResult<Assembly> {
-    let consts = extract_constants(input);
-    let mut instrs = Vec::new();
-    let mut cur_sec = Section::Text;
-    let mut data = HashMap::new();
-
-    for (lineno, line) in input.lines().enumerate() {
-        let line = line.trim();
-        let line = substitute_constants(line, &consts);
-
-        // skip blank lines and comments
-        if line.is_empty() || line.starts_with(';') || line.starts_with("@define") {
-            continue;
-        }
-
-        // section switches
-        if line.starts_with("@section") {
-            match line.strip_prefix("@section").unwrap().trim() {
-                "data" => {
-                    cur_sec = Section::Data;
-                    continue;
-                }
-                "text" => {
-                    cur_sec = Section::Text;
-                    continue;
-                }
-                other => {
-                    return Err(AssemblerError {
-                        msg: format!("unknown section `{}`", other),
-                        line: Some(lineno + 1),
-                    });
-                }
-            }
-        }
-
-        if let Section::Data = cur_sec {
-            if let Some((label, string)) = line.split_once('=') {
-                let label = label.trim().to_string();
-                let string = string.trim();
-
-                // enforce quotes
-                if !(string.starts_with('"') && string.ends_with('"') && string.len() >= 2) {
-                    return Err(AssemblerError {
-                        msg: format!("data string for `{}` must be quoted", label),
-                        line: Some(lineno + 1),
-                    });
-                }
-
-                // strip quotes
-                let raw = &string[1..string.len() - 1];
-                let mut string = unescape_string(raw);
-                string.push('\0');
-                data.insert(label, string);
-                continue;
-            } else {
-                return Err(AssemblerError {
-                    msg: "expected `label = \"string\"` in data section".into(),
-                    line: Some(lineno + 1),
-                });
-            }
-        }
-
-        // label definition
-        if let Some(label) = line.strip_suffix(':') {
-            instrs.push(Instr::Lbl(label.to_string()));
-            continue;
-        }
-
-        // split into mnemonic + rest
-        let mut parts = line.splitn(2, ' ');
-        let mnemonic = parts.next().unwrap().to_ascii_lowercase();
-        let rest = parts.next().unwrap_or("").trim();
-
-        let instr = match mnemonic.as_str() {
-            // stack & control
-            "push16" => Instr::Push(parse_imm16(Some(rest), lineno)?),
-            "halt" => Instr::Halt,
-            "ret" => Instr::Ret,
-
-            // memory
-            "load8" => Instr::Load(parse_imm8(Some(rest), lineno)?),
-            "store8" => Instr::Store(parse_imm8(Some(rest), lineno)?),
-            "loadp" => Instr::Loadp,
-            "storep" => Instr::Storep,
-            "loadpb" => Instr::Loadpb,
-            "storepb" => Instr::Storepb,
-
-            "loadr" => {
-                let inner = rest
-                    .strip_prefix('[')
-                    .and_then(|s| s.strip_suffix(']'))
-                    .ok_or_else(|| AssemblerError {
-                        msg: "expected [reg, imm]".into(),
-                        line: Some(lineno + 1),
-                    })?;
-
-                let mut inner_parts = inner.split(',');
-                let reg_str = inner_parts
-                    .next()
-                    .ok_or_else(|| AssemblerError {
-                        msg: "missing register".into(),
-                        line: Some(lineno + 1),
-                    })?
-                    .trim();
-                let imm_str = inner_parts
-                    .next()
-                    .ok_or_else(|| AssemblerError {
-                        msg: "missing offset".into(),
-                        line: Some(lineno + 1),
-                    })?
-                    .trim();
-
-                let reg = parse_reg(Some(reg_str), lineno)?;
-                let imm = parse_imm8_signed(Some(imm_str), lineno)?;
-                Instr::Loadr(reg, imm)
-            }
-
-            "storer" => {
-                let inner = rest
-                    .strip_prefix('[')
-                    .and_then(|s| s.strip_suffix(']'))
-                    .ok_or_else(|| AssemblerError {
-                        msg: "expected [reg, imm]".into(),
-                        line: Some(lineno + 1),
-                    })?;
-
-                let mut inner_parts = inner.split(',');
-                let reg_str = inner_parts
-                    .next()
-                    .ok_or_else(|| AssemblerError {
-                        msg: "missing register".into(),
-                        line: Some(lineno + 1),
-                    })?
-                    .trim();
-                let imm_str = inner_parts
-                    .next()
-                    .ok_or_else(|| AssemblerError {
-                        msg: "missing offset".into(),
-                        line: Some(lineno + 1),
-                    })?
-                    .trim();
-
-                let reg = parse_reg(Some(reg_str), lineno)?;
-                let imm = parse_imm8_signed(Some(imm_str), lineno)?;
-                Instr::Storer(reg, imm)
-            }
-
-            // jumps & calls (label forms)
-            "jmp" => Instr::JmpLbl(parse_label(Some(rest), lineno)?),
-            "jmp8" => Instr::Jmp(parse_imm8_signed(Some(rest), lineno)?),
-
-            "jlt" => Instr::JltLbl(parse_label(Some(rest), lineno)?),
-            "jlt8" => Instr::Jlt(parse_imm8_signed(Some(rest), lineno)?),
-
-            "jgt" => Instr::JgtLbl(parse_label(Some(rest), lineno)?),
-            "jgt8" => Instr::Jgt(parse_imm8_signed(Some(rest), lineno)?),
-
-            "jeq" => Instr::JeqLbl(parse_label(Some(rest), lineno)?),
-            "jeq8" => Instr::Jeq(parse_imm8_signed(Some(rest), lineno)?),
-            "call" => Instr::CallLbl(parse_label(Some(rest), lineno)?),
-
-            // integer arithmetic
-            "add" => Instr::Add,
-            "sub" => Instr::Sub,
-            "mul" => Instr::Mul,
-            "div" => Instr::Div,
-            "neg" => Instr::Neg,
-            "cmp" => Instr::Cmp,
-            "mod" => Instr::Mod,
-
-            // bitwise
-            "not" => Instr::Not,
-            "and" => Instr::And,
-            "or" => Instr::Or,
-            "xor" => Instr::Xor,
-            "shft" => Instr::Shft,
-
-            // register ops
-            "mov" => {
-                let mut ops = rest.split_whitespace();
-                let rd = parse_reg(ops.next(), lineno)?;
-                let rs = parse_reg(ops.next(), lineno)?;
-                Instr::Mov(rd, rs)
-            }
-            "pushr" => {
-                let mut ops = rest.split_whitespace();
-                let rs = parse_reg(ops.next(), lineno)?;
-                Instr::Pushr(rs)
-            }
-            "popr" => {
-                let mut ops = rest.split_whitespace();
-                let rd = parse_reg(ops.next(), lineno)?;
-                Instr::Popr(rd)
-            }
-
-            // video
-            "print" => Instr::Print,
-            "mvcur" => Instr::MvCur(parse_imm8(Some(rest), lineno)? as i8),
-
-            // data
-            "data" => Instr::Data(parse_label(Some(rest), lineno)?),
-
-            _ => {
-                return Err(AssemblerError {
-                    msg: format!("unknown mnemonic `{}`", mnemonic),
-                    line: Some(lineno + 1),
-                });
-            }
-        };
-
-        instrs.push(instr);
-    }
-
-    Ok(Assembly {
-        text: instrs,
-        data: data.into_iter().collect(),
-    })
+fn mnemonic<'a>() -> impl Parser<'a, &'a str, Mnemonic> {
+    choice([
+        // R-Type
+        just("ADD").to(Mnemonic::Add),
+        just("SUB").to(Mnemonic::Sub),
+        just("AND").to(Mnemonic::And),
+        just("OR").to(Mnemonic::Or),
+        just("XOR").to(Mnemonic::Xor),
+        just("SHL").to(Mnemonic::Shl),
+        just("SHR").to(Mnemonic::Shr),
+        just("MOV").to(Mnemonic::Mov),
+        // I-Type
+        just("ADDI").to(Mnemonic::AddI),
+        just("SUBI").to(Mnemonic::SubI),
+        just("ANDI").to(Mnemonic::AndI),
+        just("ORI").to(Mnemonic::OrI),
+        just("XORI").to(Mnemonic::XorI),
+        just("SHLI").to(Mnemonic::ShlI),
+        just("SHRI").to(Mnemonic::ShrI),
+        just("MOVI").to(Mnemonic::MovI),
+        // M-Type
+        just("LDW").to(Mnemonic::Ldw),
+        just("STW").to(Mnemonic::Stw),
+        just("LDB").to(Mnemonic::Ldb),
+        just("STB").to(Mnemonic::Stb),
+        // B-Type
+        just("JMP").to(Mnemonic::Jmp),
+        just("JEQ").to(Mnemonic::Jeq),
+        just("JLT").to(Mnemonic::Jlt),
+        just("JGT").to(Mnemonic::Jgt),
+        // E-Type
+        just("JMPW").to(Mnemonic::JmpW),
+        just("JEQW").to(Mnemonic::JeqW),
+        just("JLTW").to(Mnemonic::JltW),
+        just("JGTW").to(Mnemonic::JgtW),
+        just("CALL").to(Mnemonic::Call),
+        // S-Type
+        just("RET").to(Mnemonic::Ret),
+        just("NOOP").to(Mnemonic::NoOp),
+        just("HALT").to(Mnemonic::Halt),
+    ])
 }

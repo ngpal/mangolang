@@ -1,12 +1,14 @@
 mod error;
 mod parser;
+mod parser_old;
+mod tokenizer;
 
 use clap::{Parser, command};
 use std::{collections::HashMap, fs, io};
 
 use crate::{
     error::{AssemblerError, AssemblerResult},
-    parser::{Assembly, Instr, parse_assembly},
+    parser::{Assembly, Format, Instr, Mnemonic, parse_assembly},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -35,25 +37,15 @@ type Relocs = Vec<Reloc>;
 
 #[derive(Debug)]
 pub struct Object {
-    pub instrs: Vec<Instr>,
+    pub instrs: Vec<Instr>, // Changed from Vec<Mnemonic> to Vec<Instr>
     pub data: Vec<(String, String)>,
     pub symbols: Symbols,
-    pub relocs: Relocs, // assembler-time relocations with byte offsets
+    pub relocs: Relocs,
 }
 
 const OBJ_FILE_VERSION: u16 = 2;
 
 impl Object {
-    /// Serialize object into binary:
-    /// [ "MOBJ" (4) ][version u16]
-    /// [instr_bytes_len u16][data_bytes_len u16]
-    /// [symtable_len u16][reloctable_len u16]
-    /// [instr_bytes...][data_bytes...]
-    /// [symtable...][reloctable...]
-    ///
-    /// symtable: repeated (name bytes, 0u8, u16 addr)
-    /// reloctable: repeated (u16 offset, u16 sym_index, u8 kind)
-
     pub fn to_bin(&self) -> Vec<u8> {
         let mut out = Vec::new();
 
@@ -111,68 +103,296 @@ impl Object {
     }
 }
 
+impl Mnemonic {
+    fn byte_len(&self) -> usize {
+        match self {
+            // All standard instructions are 16-bit (2 bytes) in the new ISA
+            Mnemonic::Add
+            | Mnemonic::Sub
+            | Mnemonic::And
+            | Mnemonic::Or
+            | Mnemonic::Xor
+            | Mnemonic::Shl
+            | Mnemonic::Shr
+            | Mnemonic::Mov
+            | Mnemonic::AddI
+            | Mnemonic::SubI
+            | Mnemonic::AndI
+            | Mnemonic::OrI
+            | Mnemonic::XorI
+            | Mnemonic::ShlI
+            | Mnemonic::ShrI
+            | Mnemonic::MovI
+            | Mnemonic::Ldw
+            | Mnemonic::Stw
+            | Mnemonic::Ldb
+            | Mnemonic::Stb
+            | Mnemonic::Jmp
+            | Mnemonic::Jeq
+            | Mnemonic::Jlt
+            | Mnemonic::Jgt
+            | Mnemonic::Ret
+            | Mnemonic::NoOp
+            | Mnemonic::Halt => 2,
+
+            // E-Type instructions are 2 words (4 bytes total)
+            Mnemonic::JmpW | Mnemonic::JeqW | Mnemonic::JltW | Mnemonic::JgtW | Mnemonic::Call => 4,
+
+            // Pseudo instructions have no size or resolve to their concrete counterparts
+            Mnemonic::Lbl(_) => 0,
+            Mnemonic::CallLbl(_) => 4, // becomes CALL (E-type)
+            Mnemonic::JmpLbl(_) => 2,  // becomes JMP (B-type)
+            Mnemonic::JltLbl(_) => 2,  // becomes JLT (B-type)
+            Mnemonic::JgtLbl(_) => 2,  // becomes JGT (B-type)
+            Mnemonic::JeqLbl(_) => 2,  // becomes JEQ (B-type)
+            Mnemonic::JmpWLbl(_) => 4, // becomes JMPW (E-type)
+            Mnemonic::JltWLbl(_) => 4, // becomes JLTW (E-type)
+            Mnemonic::JgtWLbl(_) => 4, // becomes JGTW (E-type)
+            Mnemonic::JeqWLbl(_) => 4, // becomes JEQW (E-type)
+            Mnemonic::Data(_, _) => 4, // becomes CALL (E-type) for data reference
+        }
+    }
+}
+
+// Now gen_bin can access both mnemonic and format information
 pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
     let mut code = Vec::new();
 
     for instr in instrs {
-        code.extend(match instr {
-            Instr::Push(val) => vec![0x01, (val & 0xFF) as u8, (val >> 8) as u8],
-            Instr::Halt => vec![0x0F],
-            Instr::Load(addr) => vec![0x10, *addr],
-            Instr::Store(addr) => vec![0x11, *addr],
-            Instr::Loadp => vec![0x12],
-            Instr::Storep => vec![0x13],
-            Instr::Jmp(displ) => vec![0x20, *displ as u8],
-            Instr::Jlt(displ) => vec![0x21, *displ as u8],
-            Instr::Jgt(displ) => vec![0x22, *displ as u8],
-            Instr::Jeq(displ) => vec![0x23, *displ as u8],
-            Instr::Call(addr) => vec![0x24, (*addr & 0xFF) as u8, (*addr >> 8) as u8],
-            Instr::Ret => vec![0x25],
-            Instr::Add => vec![0x30],
-            Instr::Sub => vec![0x31],
-            Instr::Mul => vec![0x32],
-            Instr::Div => vec![0x33],
-            Instr::Neg => vec![0x34],
-            Instr::Cmp => vec![0x35],
-            Instr::Mod => vec![0x36],
-            Instr::Not => vec![0x40],
-            Instr::And => vec![0x41],
-            Instr::Or => vec![0x42],
-            Instr::Xor => vec![0x43],
-            Instr::Shft => vec![0x44],
-            Instr::Mov(rd, rs) => vec![0x50, (rd << 4) | rs],
-            Instr::Pushr(rs) => vec![0x51, *rs],
-            Instr::Popr(rd) => vec![0x52, *rd],
-            Instr::Print => vec![0x60],
-            Instr::MvCur(ofst) => vec![0x61, *ofst as u8],
-            Instr::Lbl(_)
-            | Instr::CallLbl(_)
-            | Instr::JmpLbl(_)
-            | Instr::JltLbl(_)
-            | Instr::JgtLbl(_)
-            | Instr::JeqLbl(_)
-            | Instr::Data(_) => {
-                unreachable!("gen_bin called on unresolved symbolic instruction")
+        let bytes = match (&instr.mnemonic, &instr.format) {
+            // R-Type instructions
+            (Mnemonic::Add, Format::Rfmt { reserved, rd, rs }) => {
+                let opcode = 0b00001u16;
+                let instr_word =
+                    (opcode << 11) | ((*reserved as u16) << 6) | ((*rd as u16) << 3) | (*rs as u16);
+                instr_word.to_le_bytes().to_vec()
             }
-            Instr::Loadr(rd, ofst) => vec![0x14, *rd, *ofst as u8],
-            Instr::Storer(rs, ofst) => vec![0x15, *rs, *ofst as u8],
-            Instr::Loadpb => vec![0x16],
-            Instr::Storepb => vec![0x17],
-        });
+            (Mnemonic::Sub, Format::Rfmt { reserved, rd, rs }) => {
+                let opcode = 0b00001u16;
+                let instr_word =
+                    (opcode << 11) | ((*reserved as u16) << 6) | ((*rd as u16) << 3) | (*rs as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::And, Format::Rfmt { reserved, rd, rs }) => {
+                let opcode = 0b00010u16;
+                let instr_word =
+                    (opcode << 11) | ((*reserved as u16) << 6) | ((*rd as u16) << 3) | (*rs as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::Or, Format::Rfmt { reserved, rd, rs }) => {
+                let opcode = 0b00010u16;
+                let instr_word =
+                    (opcode << 11) | ((*reserved as u16) << 6) | ((*rd as u16) << 3) | (*rs as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::Xor, Format::Rfmt { reserved, rd, rs }) => {
+                let opcode = 0b00010u16;
+                let instr_word =
+                    (opcode << 11) | ((*reserved as u16) << 6) | ((*rd as u16) << 3) | (*rs as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::Shl, Format::Rfmt { reserved, rd, rs }) => {
+                let opcode = 0b00011u16;
+                let instr_word =
+                    (opcode << 11) | ((*reserved as u16) << 6) | ((*rd as u16) << 3) | (*rs as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::Shr, Format::Rfmt { reserved, rd, rs }) => {
+                let opcode = 0b00011u16;
+                let instr_word =
+                    (opcode << 11) | ((*reserved as u16) << 6) | ((*rd as u16) << 3) | (*rs as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::Mov, Format::Rfmt { reserved, rd, rs }) => {
+                let opcode = 0b00100u16;
+                let instr_word =
+                    (opcode << 11) | ((*reserved as u16) << 6) | ((*rd as u16) << 3) | (*rs as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+
+            // I-Type instructions
+            (Mnemonic::AddI, Format::Ifmt { rd, imm }) => {
+                let opcode = 0b00101u16;
+                let instr_word = (opcode << 11) | ((*rd as u16) << 8) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::SubI, Format::Ifmt { rd, imm }) => {
+                let opcode = 0b00110u16;
+                let instr_word = (opcode << 11) | ((*rd as u16) << 8) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::AndI, Format::Ifmt { rd, imm }) => {
+                let opcode = 0b00111u16;
+                let instr_word = (opcode << 11) | ((*rd as u16) << 8) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::OrI, Format::Ifmt { rd, imm }) => {
+                let opcode = 0b01000u16;
+                let instr_word = (opcode << 11) | ((*rd as u16) << 8) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::XorI, Format::Ifmt { rd, imm }) => {
+                let opcode = 0b01001u16;
+                let instr_word = (opcode << 11) | ((*rd as u16) << 8) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::ShlI, Format::Ifmt { rd, imm }) => {
+                let opcode = 0b01010u16;
+                let instr_word = (opcode << 11) | ((*rd as u16) << 8) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::ShrI, Format::Ifmt { rd, imm }) => {
+                let opcode = 0b01011u16;
+                let instr_word = (opcode << 11) | ((*rd as u16) << 8) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::MovI, Format::Ifmt { rd, imm }) => {
+                let opcode = 0b01100u16;
+                let instr_word = (opcode << 11) | ((*rd as u16) << 8) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+
+            // M-Type instructions
+            (Mnemonic::Ldw, Format::Mfmt { rd, rs, imm }) => {
+                let opcode = 0b01101u16;
+                let instr_word =
+                    (opcode << 11) | ((*rd as u16) << 8) | ((*rs as u16) << 5) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::Stw, Format::Mfmt { rd, rs, imm }) => {
+                let opcode = 0b01110u16;
+                let instr_word =
+                    (opcode << 11) | ((*rd as u16) << 8) | ((*rs as u16) << 5) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::Ldb, Format::Mfmt { rd, rs, imm }) => {
+                let opcode = 0b01111u16;
+                let instr_word =
+                    (opcode << 11) | ((*rd as u16) << 8) | ((*rs as u16) << 5) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::Stb, Format::Mfmt { rd, rs, imm }) => {
+                let opcode = 0b10000u16;
+                let instr_word =
+                    (opcode << 11) | ((*rd as u16) << 8) | ((*rs as u16) << 5) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+
+            // B-Type instructions
+            (Mnemonic::Jmp, Format::Bfmt { cond, imm }) => {
+                let opcode = 0b10001u16;
+                let instr_word = (opcode << 11) | ((*cond as u16) << 9) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::Jeq, Format::Bfmt { cond, imm }) => {
+                let opcode = 0b10001u16;
+                let instr_word = (opcode << 11) | ((*cond as u16) << 9) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::Jlt, Format::Bfmt { cond, imm }) => {
+                let opcode = 0b10001u16;
+                let instr_word = (opcode << 11) | ((*cond as u16) << 9) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::Jgt, Format::Bfmt { cond, imm }) => {
+                let opcode = 0b10001u16;
+                let instr_word = (opcode << 11) | ((*cond as u16) << 9) | (*imm as u16);
+                instr_word.to_le_bytes().to_vec()
+            }
+
+            // E-Type instructions (2-word instructions)
+            (Mnemonic::JmpW, Format::Efmt { reserved }) => {
+                let opcode = 0b10010u16;
+                let instr_word = (opcode << 11) | *reserved;
+                let mut bytes = instr_word.to_le_bytes().to_vec();
+                bytes.extend(0u16.to_le_bytes()); // Second word filled by linker
+                bytes
+            }
+            (Mnemonic::JeqW, Format::Efmt { reserved }) => {
+                let opcode = 0b10010u16;
+                let instr_word = (opcode << 11) | *reserved;
+                let mut bytes = instr_word.to_le_bytes().to_vec();
+                bytes.extend(0u16.to_le_bytes());
+                bytes
+            }
+            (Mnemonic::JltW, Format::Efmt { reserved }) => {
+                let opcode = 0b10010u16;
+                let instr_word = (opcode << 11) | *reserved;
+                let mut bytes = instr_word.to_le_bytes().to_vec();
+                bytes.extend(0u16.to_le_bytes());
+                bytes
+            }
+            (Mnemonic::JgtW, Format::Efmt { reserved }) => {
+                let opcode = 0b10010u16;
+                let instr_word = (opcode << 11) | *reserved;
+                let mut bytes = instr_word.to_le_bytes().to_vec();
+                bytes.extend(0u16.to_le_bytes());
+                bytes
+            }
+            (Mnemonic::Call, Format::Efmt { reserved }) => {
+                let opcode = 0b10011u16;
+                let instr_word = (opcode << 11) | *reserved;
+                let mut bytes = instr_word.to_le_bytes().to_vec();
+                bytes.extend(0u16.to_le_bytes());
+                bytes
+            }
+
+            // S-Type instructions
+            (Mnemonic::Ret, Format::Sfmt { reserved }) => {
+                let opcode = 0b10100u16;
+                let instr_word = (opcode << 11) | *reserved;
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::NoOp, Format::Sfmt { reserved }) => {
+                let opcode = 0b00000u16;
+                let instr_word = (opcode << 11) | *reserved;
+                instr_word.to_le_bytes().to_vec()
+            }
+            (Mnemonic::Halt, Format::Sfmt { reserved }) => {
+                let opcode = 0b11111u16;
+                let instr_word = (opcode << 11) | *reserved;
+                instr_word.to_le_bytes().to_vec()
+            }
+
+            // These should never appear in gen_bin - they should be resolved by assemble_object
+            (Mnemonic::Lbl(_), _)
+            | (Mnemonic::CallLbl(_), _)
+            | (Mnemonic::JmpLbl(_), _)
+            | (Mnemonic::JltLbl(_), _)
+            | (Mnemonic::JgtLbl(_), _)
+            | (Mnemonic::JeqLbl(_), _)
+            | (Mnemonic::JmpWLbl(_), _)
+            | (Mnemonic::JltWLbl(_), _)
+            | (Mnemonic::JgtWLbl(_), _)
+            | (Mnemonic::JeqWLbl(_), _)
+            | (Mnemonic::Data(_, _), _) => {
+                unreachable!(
+                    "gen_bin called on unresolved symbolic instruction: {:?}",
+                    instr.mnemonic
+                )
+            }
+
+            _ => unreachable!(
+                "Invalid mnemonic/format combination: {:?} {:?}",
+                instr.mnemonic, instr.format
+            ),
+        };
+
+        code.extend(bytes);
     }
 
     code
 }
 
 pub fn assemble_object(assembly: &Assembly) -> AssemblerResult<Vec<u8>> {
-    let mut out_instr = Vec::new();
+    let mut out_instrs = Vec::new();
     let mut byte_pos: u16 = 0;
     let mut symbols = HashMap::new();
     let mut relocs = Vec::new();
 
     for instr in &assembly.text {
-        match instr {
-            Instr::Lbl(name) => {
+        match &instr.mnemonic {
+            Mnemonic::Lbl(name) => {
                 let rec = symbols.insert(name.clone(), byte_pos);
                 if rec.is_some() && rec.unwrap() != 0xFFFF {
                     return Err(AssemblerError {
@@ -180,71 +400,127 @@ pub fn assemble_object(assembly: &Assembly) -> AssemblerResult<Vec<u8>> {
                         line: None,
                     });
                 }
+                // Labels don't generate instructions
+                continue;
             }
 
-            Instr::JmpLbl(name)
-            | Instr::JltLbl(name)
-            | Instr::JgtLbl(name)
-            | Instr::JeqLbl(name) => {
+            // B-Type label instructions (8-bit relative jumps)
+            Mnemonic::JmpLbl(name)
+            | Mnemonic::JltLbl(name)
+            | Mnemonic::JgtLbl(name)
+            | Mnemonic::JeqLbl(name) => {
                 let target_addr = match symbols.get(name) {
-                    // Back reference
-                    Some(addr) => {
-                        (*addr as isize - (byte_pos as isize + instr.clone().byte_len() as isize))
-                            as i8
-                    }
-                    // Forward reference
+                    // Back reference - calculate relative offset
+                    Some(addr) => (*addr as isize - (byte_pos as isize + 2)) as i8,
+                    // Forward reference - add relocation
                     None => {
                         symbols.insert(name.to_string(), 0xFFFF);
                         relocs.push(Reloc {
-                            offset: byte_pos + 1,
+                            offset: byte_pos + 1, // Second byte of B-type instruction contains offset
                             sym_name: name.to_string(),
                             kind: RelocType::Rel8,
                         });
-                        -1 // 0xFF
+                        0 // Placeholder
                     }
                 };
 
-                let unlabelled = match instr {
-                    Instr::JmpLbl(_) => Instr::Jmp(target_addr),
-                    Instr::JltLbl(_) => Instr::Jlt(target_addr),
-                    Instr::JgtLbl(_) => Instr::Jgt(target_addr),
-                    Instr::JeqLbl(_) => Instr::Jeq(target_addr),
+                let (concrete_mnemonic, cond) = match &instr.mnemonic {
+                    Mnemonic::JmpLbl(_) => (Mnemonic::Jmp, 0),
+                    Mnemonic::JltLbl(_) => (Mnemonic::Jlt, 2),
+                    Mnemonic::JgtLbl(_) => (Mnemonic::Jgt, 3),
+                    Mnemonic::JeqLbl(_) => (Mnemonic::Jeq, 1),
                     _ => unreachable!(),
                 };
 
-                out_instr.push(unlabelled);
+                let resolved_instr = Instr {
+                    mnemonic: concrete_mnemonic,
+                    format: Format::Bfmt {
+                        cond,
+                        imm: target_addr as u8,
+                    },
+                };
+                out_instrs.push(resolved_instr);
             }
 
-            Instr::CallLbl(name) => {
-                let target_addr = match symbols.get(name) {
-                    Some(addr) => addr,
+            // E-Type label instructions (16-bit absolute addresses)
+            Mnemonic::JmpWLbl(name)
+            | Mnemonic::JltWLbl(name)
+            | Mnemonic::JgtWLbl(name)
+            | Mnemonic::JeqWLbl(name) => {
+                let _target_addr = match symbols.get(name) {
+                    Some(addr) => *addr,
                     None => {
                         symbols.insert(name.to_string(), 0xFFFF);
-                        &0xFFFF
+                        0xFFFF
                     }
                 };
                 relocs.push(Reloc {
-                    offset: byte_pos + 1,
+                    offset: byte_pos + 2, // Second word of E-type instruction
                     sym_name: name.to_string(),
                     kind: RelocType::Abs16,
                 });
-                out_instr.push(Instr::Call(*target_addr));
+
+                let (concrete_mnemonic, reserved) = match &instr.mnemonic {
+                    Mnemonic::JmpWLbl(_) => (Mnemonic::JmpW, 0),
+                    Mnemonic::JltWLbl(_) => (Mnemonic::JltW, 2),
+                    Mnemonic::JgtWLbl(_) => (Mnemonic::JgtW, 3),
+                    Mnemonic::JeqWLbl(_) => (Mnemonic::JeqW, 1),
+                    _ => unreachable!(),
+                };
+
+                let resolved_instr = Instr {
+                    mnemonic: concrete_mnemonic,
+                    format: Format::Efmt { reserved },
+                };
+                out_instrs.push(resolved_instr);
             }
 
-            Instr::Data(name) => {
+            Mnemonic::CallLbl(name) => {
+                let _target_addr = match symbols.get(name) {
+                    Some(addr) => *addr,
+                    None => {
+                        symbols.insert(name.to_string(), 0xFFFF);
+                        0xFFFF
+                    }
+                };
                 relocs.push(Reloc {
-                    offset: byte_pos + 1,
+                    offset: byte_pos + 2, // Second word of E-type instruction
+                    sym_name: name.to_string(),
+                    kind: RelocType::Abs16,
+                });
+
+                let resolved_instr = Instr {
+                    mnemonic: Mnemonic::Call,
+                    format: Format::Efmt { reserved: 0 },
+                };
+                out_instrs.push(resolved_instr);
+            }
+
+            Mnemonic::Data(_rd, name) => {
+                relocs.push(Reloc {
+                    offset: byte_pos + 2, // Second word of E-type instruction
                     sym_name: name.to_string(),
                     kind: RelocType::Data,
                 });
-                out_instr.push(Instr::Push(0xFFFF));
+
+                // Data reference becomes CALL for compatibility, but we'll need to modify this
+                // to actually load into the specified register
+                let resolved_instr = Instr {
+                    mnemonic: Mnemonic::Call,
+                    format: Format::Efmt { reserved: 0 },
+                };
+                out_instrs.push(resolved_instr);
             }
 
-            concrete => out_instr.push(concrete.clone()),
+            // Regular instructions - just copy them
+            _concrete => {
+                out_instrs.push(instr.clone());
+            }
         }
-        byte_pos += instr.byte_len() as u16;
+        byte_pos += instr.mnemonic.byte_len() as u16;
     }
 
+    // Handle data section symbols
     for (name, value) in &assembly.data {
         let rec = symbols.insert(name.clone(), byte_pos);
         if rec.is_some() && rec.unwrap() != 0xFFFF {
@@ -253,12 +529,11 @@ pub fn assemble_object(assembly: &Assembly) -> AssemblerResult<Vec<u8>> {
                 line: None,
             });
         }
-
         byte_pos += value.len() as u16
     }
 
     Ok(Object {
-        instrs: out_instr,
+        instrs: out_instrs,
         data: assembly.data.clone(),
         symbols: symbols
             .iter()

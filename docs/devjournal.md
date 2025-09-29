@@ -322,7 +322,12 @@ main:
 # 27-09-2025
 
 - [x] Implement in VM core
+
+# 28-09-2025
+
 - [ ] Tear down and rewrite assembler
+  - [ ] look into third party parser generator libraries
+  - [ ] lets use `chumsky` for the assembler, parser in the compiler's still going to be handwritten, for now at least
 - [ ] Seperate the VM project from the rest of the compiler
 - [ ] Macros in the assembly? (inspiriation from the jdh video)
 
