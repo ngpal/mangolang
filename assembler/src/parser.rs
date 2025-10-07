@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use computils::instr::Instr;
 
-use crate::error::{AssemblerError, AssemblerResult};
+use crate::{
+    error::{AssemblerError, AssemblerResult},
+    resolve_conv_instrs,
+};
 
 enum Section {
     Text,
@@ -61,23 +64,23 @@ fn parse_reg(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
     }
 }
 
-fn parse_imm8(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
-    let tok = token.ok_or_else(|| AssemblerError {
-        msg: "missing 8-bit immediate".into(),
-        line: Some(lineno + 1),
-    })?;
+// fn parse_imm8(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
+//     let tok = token.ok_or_else(|| AssemblerError {
+//         msg: "missing 8-bit immediate".into(),
+//         line: Some(lineno + 1),
+//     })?;
 
-    let val = if let Some(hex) = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
-        u8::from_str_radix(hex, 16)
-    } else {
-        tok.parse::<u8>()
-    };
+//     let val = if let Some(hex) = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
+//         u8::from_str_radix(hex, 16)
+//     } else {
+//         tok.parse::<u8>()
+//     };
 
-    val.map_err(|_| AssemblerError {
-        msg: format!("invalid 8-bit immediate `{}`", tok),
-        line: Some(lineno + 1),
-    })
-}
+//     val.map_err(|_| AssemblerError {
+//         msg: format!("invalid 8-bit immediate `{}`", tok),
+//         line: Some(lineno + 1),
+//     })
+// }
 
 fn parse_imm8_signed(token: Option<&str>, lineno: usize) -> AssemblerResult<i8> {
     let tok = token.ok_or_else(|| AssemblerError {
@@ -232,14 +235,12 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Assembly> {
             "ret" => Instr::Ret,
 
             // memory
-            "load8" => Instr::Load(parse_imm8(Some(rest), lineno)?),
-            "store8" => Instr::Store(parse_imm8(Some(rest), lineno)?),
-            "loadp" => Instr::Loadp,
-            "storep" => Instr::Storep,
-            "loadpb" => Instr::Loadpb,
-            "storepb" => Instr::Storepb,
+            "ldw" => Instr::Ldw,
+            "stw" => Instr::Stw,
+            "ldb" => Instr::Ldb,
+            "stb" => Instr::Stb,
 
-            "loadr" => {
+            "ldr" => {
                 let inner = rest
                     .strip_prefix('[')
                     .and_then(|s| s.strip_suffix(']'))
@@ -266,10 +267,10 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Assembly> {
 
                 let reg = parse_reg(Some(reg_str), lineno)?;
                 let imm = parse_imm8_signed(Some(imm_str), lineno)?;
-                Instr::Loadr(reg, imm)
+                Instr::Ldr(reg, imm)
             }
 
-            "storer" => {
+            "str" => {
                 let inner = rest
                     .strip_prefix('[')
                     .and_then(|s| s.strip_suffix(']'))
@@ -296,7 +297,7 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Assembly> {
 
                 let reg = parse_reg(Some(reg_str), lineno)?;
                 let imm = parse_imm8_signed(Some(imm_str), lineno)?;
-                Instr::Storer(reg, imm)
+                Instr::Str(reg, imm)
             }
 
             // jumps & calls (label forms)
@@ -347,10 +348,6 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Assembly> {
                 Instr::Popr(rd)
             }
 
-            // video
-            "print" => Instr::Print,
-            "mvcur" => Instr::MvCur(parse_imm8(Some(rest), lineno)? as i8),
-
             // data
             "data" => Instr::Data(parse_label(Some(rest), lineno)?),
 
@@ -365,6 +362,7 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Assembly> {
         instrs.push(instr);
     }
 
+    instrs = resolve_conv_instrs(instrs);
     Ok(Assembly {
         text: instrs,
         data: data.into_iter().collect(),

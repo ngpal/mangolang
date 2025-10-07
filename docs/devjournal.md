@@ -313,7 +313,17 @@ main:
 
 ## Immediate plans for VM
 
+### VM v0.1.1
+
 - [ ] reduce/simplify instruction set
+  - [x] warnings in the VM for depricated instructions
+  - [x] convenience instructions (or macros/subroutines) are expanded out in the assembler
+  - [x] remove depricated instructions from the compiler
+  - [ ] implement mul, div and mod subroutines
+
+- [ ] I/O via interrupts and not memory mapping
+  - [ ] register for interrupt arguments
+  - [ ] hook up to a terminal?
 - [ ] bigger screen?
 - [ ] immediate values in the instructions
 

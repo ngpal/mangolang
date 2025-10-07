@@ -112,6 +112,33 @@ impl Object {
     }
 }
 
+pub fn resolve_conv_instrs(instrs: Vec<Instr>) -> Vec<Instr> {
+    let mut out = Vec::new();
+    for instr in instrs {
+        out.extend(match instr {
+            Instr::Ldr(rs, imm) => vec![
+                Instr::Pushr(rs),
+                Instr::Push(imm as i16 as u16),
+                Instr::Add,
+                Instr::Ldw,
+            ],
+            Instr::Str(rd, imm) => vec![
+                Instr::Pushr(rd),
+                Instr::Push(imm as i16 as u16),
+                Instr::Add,
+                Instr::Stw,
+            ],
+            Instr::Sub => vec![Instr::Not, Instr::Push(1), Instr::Add, Instr::Add],
+            Instr::Mul => vec![Instr::CallLbl("__imul".to_string())],
+            Instr::Div => vec![Instr::CallLbl("__idiv".to_string())],
+            Instr::Mod => vec![Instr::CallLbl("__imod".to_string())],
+            Instr::Neg => vec![Instr::Not, Instr::Push(1), Instr::Add],
+            _ => vec![instr],
+        })
+    }
+    out
+}
+
 pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
     let mut code = Vec::new();
 
@@ -119,10 +146,8 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
         code.extend(match instr {
             Instr::Push(val) => vec![0x01, (val & 0xFF) as u8, (val >> 8) as u8],
             Instr::Halt => vec![0x0F],
-            Instr::Load(addr) => vec![0x10, *addr],
-            Instr::Store(addr) => vec![0x11, *addr],
-            Instr::Loadp => vec![0x12],
-            Instr::Storep => vec![0x13],
+            Instr::Ldw => vec![0x12],
+            Instr::Stw => vec![0x13],
             Instr::Jmp(displ) => vec![0x20, *displ as u8],
             Instr::Jlt(displ) => vec![0x21, *displ as u8],
             Instr::Jgt(displ) => vec![0x22, *displ as u8],
@@ -130,13 +155,8 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             Instr::Call(addr) => vec![0x24, (*addr & 0xFF) as u8, (*addr >> 8) as u8],
             Instr::Ret => vec![0x25],
             Instr::Add => vec![0x30],
-            Instr::Sub => vec![0x31],
-            Instr::Mul => vec![0x32],
-            Instr::Div => vec![0x33],
-            Instr::Neg => vec![0x34],
             Instr::Cmp => vec![0x35],
             Instr::Mod => vec![0x36],
-            Instr::Not => vec![0x40],
             Instr::And => vec![0x41],
             Instr::Or => vec![0x42],
             Instr::Xor => vec![0x43],
@@ -144,8 +164,6 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             Instr::Mov(rd, rs) => vec![0x50, (rd << 4) | rs],
             Instr::Pushr(rs) => vec![0x51, *rs],
             Instr::Popr(rd) => vec![0x52, *rd],
-            Instr::Print => vec![0x60],
-            Instr::MvCur(ofst) => vec![0x61, *ofst as u8],
             Instr::Lbl(_)
             | Instr::CallLbl(_)
             | Instr::JmpLbl(_)
@@ -155,10 +173,17 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             | Instr::Data(_) => {
                 unreachable!("gen_bin called on unresolved symbolic instruction")
             }
-            Instr::Loadr(rd, ofst) => vec![0x14, *rd, *ofst as u8],
-            Instr::Storer(rs, ofst) => vec![0x15, *rs, *ofst as u8],
-            Instr::Loadpb => vec![0x16],
-            Instr::Storepb => vec![0x17],
+            Instr::Not
+            | Instr::Ldb
+            | Instr::Stb
+            | Instr::Sub
+            | Instr::Mul
+            | Instr::Div
+            | Instr::Neg
+            | Instr::Ldr(_, _)
+            | Instr::Str(_, _) => {
+                unreachable!("gen_bin called on unresolved convenience instructions")
+            }
         });
     }
 
@@ -291,13 +316,13 @@ fn main() -> io::Result<()> {
     let asm_code = fs::read_to_string(&cli.input)?;
 
     // parse assembly → instrs
-    let instrs = parse_assembly(&asm_code).unwrap_or_else(|e| {
+    let assembly = parse_assembly(&asm_code).unwrap_or_else(|e| {
         eprintln!("Assembly parse error: {:?}", e);
         std::process::exit(1);
     });
 
     // assemble into object bytes
-    let object_bytes = assemble_object(&instrs).unwrap_or_else(|e| {
+    let object_bytes = assemble_object(&assembly).unwrap_or_else(|e| {
         eprintln!("Assembly error: {:?}", e);
         std::process::exit(1);
     });

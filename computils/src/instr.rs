@@ -2,14 +2,12 @@
 pub enum Instr {
     Halt,
     Push(u16),
-    Load(u8),
-    Store(u8),
-    Loadp,
-    Storep,
-    Loadpb,
-    Storepb,
-    Loadr(u8, i8),
-    Storer(u8, i8),
+    Ldw,
+    Stw,
+    Ldb,
+    Stb,
+    Ldr(u8, i8),
+    Str(u8, i8),
 
     Jmp(i8),
     Jlt(i8),
@@ -38,9 +36,6 @@ pub enum Instr {
     Pushr(u8),
     Popr(u8),
 
-    Print,
-    MvCur(i8),
-
     // pseudo instructions
     Lbl(String),
     CallLbl(String),
@@ -54,9 +49,7 @@ pub enum Instr {
 impl Instr {
     pub fn byte_len(&self) -> usize {
         match self {
-            Instr::Push(_) | Self::Data(_) => 3,
-            Instr::Load(_) => 2,
-            Instr::Store(_) => 2,
+            Instr::Push(_) | Instr::Data(_) => 3,
             Instr::Jmp(_) => 2,
             Instr::Jlt(_) => 2,
             Instr::Jgt(_) => 2,
@@ -64,15 +57,7 @@ impl Instr {
             Instr::Mov(_, _) => 2,
             Instr::Pushr(_) => 2,
             Instr::Popr(_) => 2,
-            Instr::Add
-            | Instr::Sub
-            | Instr::Mul
-            | Instr::Div
-            | Instr::Neg
-            | Instr::Not
-            | Instr::Cmp
-            | Instr::Mod
-            | Instr::Halt => 1,
+            Instr::Add | Instr::Not | Instr::Halt => 1,
             Instr::Lbl(_) => 0,
             Instr::JmpLbl(_) => 2,
             Instr::JltLbl(_) => 2,
@@ -83,16 +68,20 @@ impl Instr {
             Instr::Or => 1,
             Instr::Shft => 1,
             Instr::Xor => 1,
-            Instr::Loadp => 1,
-            Instr::Storep => 1,
-            Instr::Print => 1,
-            Instr::MvCur(_) => 1,
             Instr::Call(_) => 3,
             Instr::Ret => 1,
-            Instr::Loadr { .. } => 3,
-            Instr::Storer { .. } => 3,
-            Instr::Loadpb => 1,
-            Instr::Storepb => 1,
+            Instr::Ldw => 1,
+            Instr::Stw => 1,
+            Instr::Ldb => 1,
+            Instr::Stb => 1,
+            Instr::Ldr(_, _)
+            | Instr::Str(_, _)
+            | Instr::Cmp
+            | Instr::Sub
+            | Instr::Mul
+            | Instr::Div
+            | Instr::Neg
+            | Instr::Mod => unreachable!("byte_len called on convenience instruction"),
         }
     }
 }

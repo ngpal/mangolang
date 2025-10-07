@@ -1,0 +1,11 @@
+; a * b, b above a
+__imul:
+	; duplicate a for counter
+	ldr [sp + 4]
+
+__imul_loop:
+	; duplicate b for adding
+	ldr [sp + 4]
+
+	; duplicate a
+	ldr [sp + 12]

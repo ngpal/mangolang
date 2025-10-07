@@ -1,5 +1,3 @@
-use std::cmp;
-
 use crate::{
     error::{RuntimeError, RuntimeResult},
     instr::Instr,
@@ -12,8 +10,6 @@ const MAX_PROGRAM_SIZE: usize = 32 * 1024; // 32KB
 pub const VIDEO_WIDTH: usize = 40;
 pub const VIDEO_HEIGHT: usize = 12;
 pub const VIDEO_BASE: usize = 0x8000;
-pub const VIDEO_SIZE: usize = VIDEO_WIDTH * VIDEO_HEIGHT;
-pub const CURSOR_ADDR: usize = VIDEO_BASE + VIDEO_SIZE;
 pub const INFO_HEIGHT: usize = 5;
 
 #[derive(Default)]
@@ -124,40 +120,38 @@ impl Vm {
         // address after end of program
         self.program_end = program.len() - 4;
 
-        // self.allocate_locals()?;
-
         Ok(())
     }
 
-    fn allocate_locals(&mut self) -> RuntimeResult<()> {
-        let mut max_local = 0;
-        let mut ip = 0;
-        let program_start = 0; // memory index 0 now contains first instruction
+    // fn allocate_locals(&mut self) -> RuntimeResult<()> {
+    //     let mut max_local = 0;
+    //     let mut ip = 0;
+    //     let program_start = 0; // memory index 0 now contains first instruction
 
-        while ip < self.program_end {
-            let instr_byte = self.memory[program_start + ip];
-            if instr_byte == Instr::Store8 as u8 {
-                max_local = cmp::max(max_local, self.memory[program_start + ip + 1]);
-            }
+    //     while ip < self.program_end {
+    //         let instr_byte = self.memory[program_start + ip];
+    //         if instr_byte == Instr::Store8 as u8 {
+    //             max_local = cmp::max(max_local, self.memory[program_start + ip + 1]);
+    //         }
 
-            ip += Instr::from_u8(instr_byte)
-                .ok_or(RuntimeError(format!(
-                    "formatting issue on byte {} (0x{:X}) in the instructions",
-                    ip, instr_byte
-                )))?
-                .byte_len();
-        }
+    //         ip += Instr::from_u8(instr_byte)
+    //             .ok_or(RuntimeError(format!(
+    //                 "formatting issue on byte {} (0x{:X}) in the instructions",
+    //                 ip, instr_byte
+    //             )))?
+    //             .byte_len();
+    //     }
 
-        let space_needed = 2 * (max_local as usize + 1);
-        if (self.registers.get_sp() as usize) < space_needed + self.program_end {
-            return Err(RuntimeError(
-                "memory overflow - too many local variables".into(),
-            ));
-        }
+    //     let space_needed = 2 * (max_local as usize + 1);
+    //     if (self.registers.get_sp() as usize) < space_needed + self.program_end {
+    //         return Err(RuntimeError(
+    //             "memory overflow - too many local variables".into(),
+    //         ));
+    //     }
 
-        self.registers.dec_sp(space_needed as u16);
-        Ok(())
-    }
+    //     self.registers.dec_sp(space_needed as u16);
+    //     Ok(())
+    // }
 
     fn read_word(&self, addr: u16) -> u16 {
         let lo = self.memory[addr as usize];
@@ -253,37 +247,12 @@ impl Vm {
                 self.push_word(word)?;
             }
             Instr::Halt => return Ok(true),
-            Instr::Add
-            | Instr::Sub
-            | Instr::Mul
-            | Instr::Div
-            | Instr::Cmp
-            | Instr::Mod
-            | Instr::And
-            | Instr::Or
-            | Instr::Xor
-            | Instr::Shft => {
+            Instr::Add | Instr::Cmp | Instr::And | Instr::Or | Instr::Xor | Instr::Shft => {
                 let right = self.pop_word()?;
                 let left = self.pop_word()?;
 
                 let (result, overflow) = match instr {
                     Instr::Add => left.overflowing_add(right),
-                    Instr::Sub | Instr::Cmp => left.overflowing_sub(right),
-                    Instr::Mul => left.overflowing_mul(right),
-                    Instr::Div => {
-                        if right == 0 {
-                            return Err(RuntimeError("division by zero".into()));
-                        }
-                        let (res, overflow) = (left as i16).overflowing_div(right as i16);
-                        (res as u16, overflow)
-                    }
-                    Instr::Mod => {
-                        if right == 0 {
-                            return Err(RuntimeError("modulo by zero".into()));
-                        }
-                        let (res, overflow) = (left as i16).overflowing_rem(right as i16);
-                        (res as u16, overflow)
-                    }
                     Instr::And => (left & right, false),
                     Instr::Or => (left | right, false),
                     Instr::Xor => (left ^ right, false),
@@ -316,21 +285,6 @@ impl Vm {
 
                 self.set_flags(result, overflow);
             }
-            Instr::Neg => {
-                let operand = self.pop_word()?;
-                self.push_word((!operand).wrapping_add(1))?
-            }
-            Instr::Store8 => {
-                let offset = self.fetch_byte() as u16;
-                let addr = self.registers.get_fp() - offset * 2;
-                let val = self.pop_word()?;
-                self.write_word(addr, val)?;
-            }
-            Instr::Load8 => {
-                let offset = self.fetch_byte() as u16;
-                let addr = self.registers.get_fp() - offset * 2;
-                self.push_word(self.read_word(addr))?;
-            }
             Instr::Jmp8 => return self.jump_rel(true),
             Instr::Jlt8 => return self.jump_rel(self.flags.n),
             Instr::Jgt8 => return self.jump_rel(!self.flags.z && !self.flags.n),
@@ -357,20 +311,20 @@ impl Vm {
 
                 self.registers.set_reg(rd, word)?;
             }
-            Instr::Loadp => {
+            Instr::Ldw => {
                 let addr = self.pop_word()?;
                 self.push_word(self.read_word(addr))?;
             }
-            Instr::Storep => {
+            Instr::Stw => {
                 let val = self.pop_word()?;
                 let addr = self.pop_word()?;
                 self.write_word(addr, val)?;
             }
-            Instr::Loadpb => {
+            Instr::Ldb => {
                 let addr = self.pop_word()?;
                 self.push_word(self.read_byte(addr) as u16)?;
             }
-            Instr::Storepb => {
+            Instr::Stb => {
                 let val = self.pop_word()? as u8;
                 let addr = self.pop_word()?;
                 self.write_byte(addr, val)?;
@@ -384,46 +338,11 @@ impl Vm {
                 let addr = self.pop_word()?;
                 self.ip = addr;
             }
-            Instr::Print => {
-                let ch = self.pop_word()? as u8;
-
-                // read cursor position
-                let mut pos = self.read_word(CURSOR_ADDR as u16) as usize;
-
-                if ch == b'\n' {
-                    // move cursor to start of next line
-                    let row = pos / VIDEO_WIDTH;
-                    let next_row = (row + 1) % VIDEO_HEIGHT;
-                    pos = next_row * VIDEO_WIDTH;
-                } else if pos < VIDEO_SIZE {
-                    self.memory[VIDEO_BASE + pos] = ch;
-                    // advance cursor
-                    pos += 1;
-                    if pos >= VIDEO_SIZE {
-                        pos = 0;
-                    }
-                }
-
-                self.write_word(CURSOR_ADDR as u16, pos as u16)?;
-            }
-            Instr::MvCur => {
-                let offset = self.fetch_byte() as i8;
-                let cur = self.read_word(CURSOR_ADDR as u16) as i16;
-                let new_cur = (cur + offset as i16).clamp(0, (VIDEO_SIZE - 1) as i16);
-                self.write_word(CURSOR_ADDR as u16, new_cur as u16)?;
-            }
-            Instr::Loadr => {
-                let reg_byte = self.fetch_byte();
-                let reg = self.registers.get_reg(reg_byte)?;
-                let offset = self.fetch_byte() as i8;
-                self.push_word(self.read_word((reg as i8 + offset) as u16))?
-            }
-            Instr::Storer => {
-                let reg_byte = self.fetch_byte();
-                let reg = self.registers.get_reg(reg_byte)?;
-                let offset = self.fetch_byte() as i8;
-                let word = self.pop_word()?;
-                self.write_word((reg as i8 + offset) as u16, word)?;
+            instr => {
+                return Err(RuntimeError(format!(
+                    "Encountered depricated instruction 0x{:4X}",
+                    instr as u8,
+                )));
             }
         }
 
@@ -470,52 +389,16 @@ impl Vm {
                 }
                 Some(Instr::Halt) => format!("0x{:04X}: HALT", addr),
                 Some(Instr::Add) => format!("0x{:04X}: ADD", addr),
-                Some(Instr::Sub) => format!("0x{:04X}: SUB", addr),
-                Some(Instr::Mul) => format!("0x{:04X}: MUL", addr),
-                Some(Instr::Div) => format!("0x{:04X}: DIV", addr),
-                Some(Instr::Neg) => format!("0x{:04X}: NEG", addr),
                 Some(Instr::Cmp) => format!("0x{:04X}: CMP", addr),
-                Some(Instr::Mod) => format!("0x{:04X}: MOD", addr),
                 Some(Instr::Not) => format!("0x{:04X}: NOT", addr),
                 Some(Instr::And) => format!("0x{:04X}: AND", addr),
                 Some(Instr::Or) => format!("0x{:04X}: OR", addr),
                 Some(Instr::Xor) => format!("0x{:04X}: XOR", addr),
                 Some(Instr::Shft) => format!("0x{:04X}: SHFT", addr),
-                Some(Instr::Load8) => {
-                    size = 2;
-                    format!("0x{:04X}: LOAD8 {}", addr, self.memory[addr + 1])
-                }
-                Some(Instr::Store8) => {
-                    size = 2;
-                    format!("0x{:04X}: STORE8 {}", addr, self.memory[addr + 1])
-                }
-                Some(Instr::Loadp) => format!("0x{:04X}: LOADP", addr),
-                Some(Instr::Storep) => format!("0x{:04X}: STOREP", addr),
-                Some(Instr::Loadpb) => format!("0x{:04X}: LOADPB", addr),
-                Some(Instr::Storepb) => format!("0x{:04X}: STOREPB", addr),
-                Some(Instr::Loadr) => {
-                    size = 3;
-                    let reg = self.memory[addr + 1];
-                    let offset = self.memory[addr + 2] as i8;
-                    format!(
-                        "0x{:04X}: LOADR [{}, {}{}]",
-                        addr,
-                        Self::reg_name(reg),
-                        if offset >= 0 { "+" } else { "" },
-                        offset
-                    )
-                }
-                Some(Instr::Storer) => {
-                    size = 3;
-                    let reg = self.memory[addr + 1];
-                    let offset = self.memory[addr + 2] as i8;
-                    format!(
-                        "0x{:04X}: STORER [{}, {}]",
-                        addr,
-                        Self::reg_name(reg),
-                        offset
-                    )
-                }
+                Some(Instr::Ldw) => format!("0x{:04X}: LOADP", addr),
+                Some(Instr::Stw) => format!("0x{:04X}: STOREP", addr),
+                Some(Instr::Ldb) => format!("0x{:04X}: LOADPB", addr),
+                Some(Instr::Stb) => format!("0x{:04X}: STOREPB", addr),
                 Some(Instr::Jmp8) => {
                     size = 2;
                     format!("0x{:04X}: JMP8 {}", addr, self.memory[addr + 1] as i8)
@@ -558,12 +441,7 @@ impl Vm {
                     size = 2;
                     format!("0x{:04X}: POPR r{}", addr, self.memory[addr + 1])
                 }
-                Some(Instr::Print) => format!("0x{:04X}: PRINT", addr),
-                Some(Instr::MvCur) => {
-                    size = 2;
-                    format!("0x{:04X}: MVCUR {}", addr, self.memory[addr + 1] as i8)
-                }
-                // Some(_) => format!("0x{:04X}: <instr 0x{:02X}>", addr, byte),
+                Some(_) => format!("0x{:04X}: <instr 0x{:02X}>", addr, byte),
                 None => format!("0x{:04X}: DB 0x{:02X}", addr, byte),
             };
 
