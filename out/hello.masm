@@ -1,37 +1,69 @@
 @section data
-
-msg = "I love my girlfriend <3\n"
-
+__str_0 = "this won't work all the time! (strings straight in an argument)"
 @section text
+CALL main
+HALT
 
-main: 
-	DATA      msg
-	PUSH16    0
-	POPR      r2         ; store the index in r2
+print_string:
+PUSHR fp
+MOV fp, sp
+PUSH16 65534
+PUSHR fp
+ADD
+POPR sp
+PUSH16 0
+STORER [fp, 0]
 
-loop:
-	; duplicate the address
-	LOADR     [SP, 2]   
-	PUSHR     r2
-	ADD
-	LOADPB
+L0:
+LOADR [fp, 6]
+LOADR [fp, 0]
+PUSH16 1
+MUL
+ADD
+LOADPB
+PUSH16 0
+CMP
+JEQ L2
+JMP L4
 
-	; duplicate the character
-	LOADR     [SP, 2]   
-	PUSH16    0
-	CMP
-	JEQ       end
+L2:
+JMP L1
 
-	; prints the character at r0
-	POPR      r0
-	CALL      print      
+L4:
+LOADR [fp, 6]
+LOADR [fp, 0]
+PUSH16 1
+MUL
+ADD
+LOADPB
+POPR r0
+CALL print
+LOADR [fp, 0]
+PUSH16 1
+ADD
+STORER [fp, 0]
+JMP L0
 
-	PUSHR     r2
-	PUSH16    1
-	ADD
-	POPR      r2
+L1:
+MOV sp, fp
+POPR fp
+RET
 
-	JMP       loop
-
-end:
-	HALT
+main:
+PUSHR fp
+MOV fp, sp
+PUSH16 0
+PUSHR fp
+ADD
+POPR sp
+DATA __str_0
+CALL print_string
+PUSHR sp
+PUSH16 2
+PUSH16 1
+MUL
+ADD
+POPR sp
+MOV sp, fp
+POPR fp
+RET

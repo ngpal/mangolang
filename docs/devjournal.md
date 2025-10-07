@@ -311,6 +311,12 @@ main:
   - [x] generate arrays in reverse so that the indeces goes up
   - [x] use data section for strings
 
+## Immediate plans for VM
+
+- [ ] reduce/simplify instruction set
+- [ ] bigger screen?
+- [ ] immediate values in the instructions
+
 - [ ] allow multiple files
   - [ ] enforce main function on a assembler level not compiler level
   - [ ] allow only function headers to pass through for functions implemented in assembly
