@@ -129,9 +129,24 @@ pub fn resolve_conv_instrs(instrs: Vec<Instr>) -> Vec<Instr> {
                 Instr::Stw,
             ],
             Instr::Sub => vec![Instr::Not, Instr::Push(1), Instr::Add, Instr::Add],
-            Instr::Mul => vec![Instr::CallLbl("__imul".to_string()), Instr::Popr(0)],
-            Instr::Div => vec![Instr::CallLbl("__idiv".to_string()), Instr::Popr(0)],
-            Instr::Mod => vec![Instr::CallLbl("__imod".to_string()), Instr::Popr(0)],
+            Instr::Mul => vec![
+                Instr::Popr(2),
+                Instr::Popr(1),
+                Instr::CallLbl("__imul".to_string()),
+                Instr::Pushr(0),
+            ],
+            Instr::Div => vec![
+                Instr::Popr(3),
+                Instr::Popr(2),
+                Instr::CallLbl("__idivmod".to_string()),
+                Instr::Pushr(0),
+            ],
+            Instr::Mod => vec![
+                Instr::Popr(3),
+                Instr::Popr(2),
+                Instr::CallLbl("__idivmod".to_string()),
+                Instr::Pushr(1),
+            ],
             Instr::Neg => vec![Instr::Not, Instr::Push(1), Instr::Add],
             _ => vec![instr],
         })
@@ -148,6 +163,8 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             Instr::Halt => vec![0x0F],
             Instr::Ldw => vec![0x12],
             Instr::Stw => vec![0x13],
+            Instr::Ldb => vec![0x16],
+            Instr::Stb => vec![0x17],
             Instr::Jmp(displ) => vec![0x20, *displ as u8],
             Instr::Jlt(displ) => vec![0x21, *displ as u8],
             Instr::Jgt(displ) => vec![0x22, *displ as u8],
@@ -174,9 +191,7 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             | Instr::Data(_) => {
                 unreachable!("gen_bin called on unresolved symbolic instruction")
             }
-            Instr::Ldb
-            | Instr::Stb
-            | Instr::Sub
+            Instr::Sub
             | Instr::Mul
             | Instr::Div
             | Instr::Neg

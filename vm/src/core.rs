@@ -339,12 +339,6 @@ impl Vm {
                 let addr = self.pop_word()?;
                 self.ip = addr;
             }
-            instr => {
-                return Err(RuntimeError(format!(
-                    "Encountered depricated instruction 0x{:4X}",
-                    instr as u8,
-                )));
-            }
         }
 
         Ok(false)
@@ -442,7 +436,6 @@ impl Vm {
                     size = 2;
                     format!("0x{:04X}: POPR r{}", addr, self.memory[addr + 1])
                 }
-                Some(_) => format!("0x{:04X}: <instr 0x{:02X}>", addr, byte),
                 None => format!("0x{:04X}: DB 0x{:02X}", addr, byte),
             };
 

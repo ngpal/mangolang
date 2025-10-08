@@ -1,39 +1,108 @@
 ; __imul: signed 16-bit multiply
-; stack: [..., a, b] → top = b, next = a
-; returns result in r0 and pushes it on stack
+; r1 = a
+; r2 = b
+; r3 = sign
+; returns result in r0
 
 __imul:
-    ; pop arguments
-    POPR r3        ; r3 = b (top)
-    POPR r2        ; r2 = a (next)
+	; set up sign
+	PUSHR r1
+	PUSH16 0
+	CMP
 
-    ; initialize accumulator and sign flag
-    PUSH16 0
-    POPR r0        ; r0 = accumulator
-    PUSH16 0
-    POPR r4        ; r4 = sign flag
+	JGT __imul_a_pos
+	PUSH16 1
+	POPR  r3
+	PUSHR r1
+	NEG
+	POPR  r1
 
-    ; --- handle sign of a ---
-    PUSHR r2
-    PUSH16 0
-    CMP
-    JLT __imul_neg_a
-    JMP __imul_check_b
-__imul_neg_a:
-    PUSHR r2
-    NEG
-    POPR r2
-    PUSH16 1
-    POPR r4
+__imul_a_pos:
+	PUSHR r2
+	PUSH16 0
+	CMP
 
-__imul_check_b:
-    ; --- handle sign of b ---
+	JGT __imul_loop
+	PUSH16 1
+	PUSHR r3
+	XOR
+	POPR  r3
+	PUSHR r2
+	NEG
+	POPR  r2
+
+__imul_loop:
+	PUSHR r2
+	PUSH16 0
+	CMP
+
+	JEQ __imul_sign_check
+
+	; if b is not zero
+	PUSHR r0
+	PUSHR r1
+	ADD
+	POPR  r0
+
+	PUSHR r2
+	PUSH16 1
+	SUB
+	POPR  r2
+
+	JMP   __imul_loop
+
+__imul_sign_check:
+	PUSHR r3
+	PUSH16 0
+	CMP
+
+	JEQ __imul_end
+	PUSHR r0
+	NEG
+	POPR  r0
+	
+__imul_end:
+	RET
+
+; __idivmod: signed 16-bit division and modulo
+; r2 = dividend (a)
+; r3 = divisor  (b)
+; r0 = quotient (a / b)
+; r1 = remainder (a % b)
+; r4 = sign tracker (0 = positive, 1 = negative)
+
+__idivmod:
+    ; handle division by zero (optional: return 0/0)
     PUSHR r3
     PUSH16 0
     CMP
-    JLT __imul_neg_b
-    JMP __imul_mul_loop
-__imul_neg_b:
+    JEQ __idivmod_zero
+
+    ; initialize quotient and sign tracker
+    PUSH16 0
+    POPR r0      ; r0 = 0
+    PUSH16 0
+    POPR r4      ; r4 = 0 (sign tracker)
+
+    ; handle dividend sign
+    PUSHR r2
+    PUSH16 0
+    CMP
+    JGT __div_a_pos
+    PUSHR r2
+    NEG
+    POPR r2
+    PUSHR r4
+    PUSH16 1
+    XOR
+    POPR r4
+__div_a_pos:
+
+    ; handle divisor sign
+    PUSHR r3
+    PUSH16 0
+    CMP
+    JGT __div_b_pos
     PUSHR r3
     NEG
     POPR r3
@@ -41,52 +110,49 @@ __imul_neg_b:
     PUSH16 1
     XOR
     POPR r4
+__div_b_pos:
 
-__imul_mul_loop:
-    ; --- while b != 0 ---
-    PUSHR r3
-    PUSH16 0
-    CMP
-    JEQ __imul_apply_sign
-
-    ; --- if b & 1 != 0, add a to accumulator ---
-    PUSHR r3
-    PUSH16 1
-    AND
-    PUSH16 0
-    CMP
-    JEQ __imul_skip_add
-    PUSHR r0
+    ; repeated subtraction loop
+__div_loop:
     PUSHR r2
-    ADD
-    POPR r0
-__imul_skip_add:
+    PUSHR r3
+    CMP
+    JLT __div_done    
 
-    ; --- shift a left ---
+    ; subtract divisor from dividend
     PUSHR r2
-    PUSH16 1
-    SHFT
+    PUSHR r3
+    SUB
     POPR r2
 
-    ; --- shift b right ---
-    PUSHR r3
+    ; increment quotient
+    PUSHR r0
     PUSH16 1
-	NEG
-    SHFT
-    POPR r3
+    ADD
+    POPR r0
 
-    JMP __imul_mul_loop
+    JMP __div_loop
 
-__imul_apply_sign:
-    ; --- apply sign ---
+__div_done:
+    ; remainder = dividend
+    PUSHR r2
+    POPR r1
+
+    ; apply quotient sign
     PUSHR r4
     PUSH16 0
     CMP
-    JEQ __imul_done
+    JEQ __div_end
     PUSHR r0
     NEG
     POPR r0
 
-__imul_done:
-    PUSHR r0      ; push result on stack
+__div_end:
+    RET
+
+__idivmod_zero:
+    PUSH16 0
+    POPR r0
+    PUSH16 0
+    POPR r1
     RET

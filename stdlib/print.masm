@@ -9,7 +9,7 @@
 print:
     ; put current cursor position on the top of the stack
     PUSH16  =CURSOR_POS
-    LOADP
+    LDW
 
     ; store current cursor value in r1 for incrementing later
     POPR    r1
@@ -28,14 +28,14 @@ print:
 
     ; write the character
     PUSHR   r0
-    STOREPB
+    STB
 
     ; increment cursor by 1
     PUSH16  =CURSOR_POS
     PUSHR   r1
     PUSH16  1
     ADD
-    STOREP
+    STW
 
     RET
 
@@ -52,6 +52,6 @@ print:
 	PUSH16  =VIDEO_WIDTH
 	MUL                   
 
-    STOREP
+    STW
 
     RET
