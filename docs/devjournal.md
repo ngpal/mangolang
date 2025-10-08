@@ -329,6 +329,8 @@ main:
 ### Sidequest ALERT
 
 - [ ] Interrupt/like command to put a character on the screen
+  - [ ] Tear out video memory from the VM
+  - [ ] Implement it as a seperate array in the debug screen
   - This is relevant because it DRASTICALLY reduces the code size for debugging purposes
 
 - [ ] I/O via interrupts and not memory mapping
