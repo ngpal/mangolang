@@ -1,11 +1,92 @@
-; a * b, b above a
+; __imul: signed 16-bit multiply
+; stack: [..., a, b] → top = b, next = a
+; returns result in r0 and pushes it on stack
+
 __imul:
-	; duplicate a for counter
-	ldr [sp + 4]
+    ; pop arguments
+    POPR r3        ; r3 = b (top)
+    POPR r2        ; r2 = a (next)
 
-__imul_loop:
-	; duplicate b for adding
-	ldr [sp + 4]
+    ; initialize accumulator and sign flag
+    PUSH16 0
+    POPR r0        ; r0 = accumulator
+    PUSH16 0
+    POPR r4        ; r4 = sign flag
 
-	; duplicate a
-	ldr [sp + 12]
+    ; --- handle sign of a ---
+    PUSHR r2
+    PUSH16 0
+    CMP
+    JLT __imul_neg_a
+    JMP __imul_check_b
+__imul_neg_a:
+    PUSHR r2
+    NEG
+    POPR r2
+    PUSH16 1
+    POPR r4
+
+__imul_check_b:
+    ; --- handle sign of b ---
+    PUSHR r3
+    PUSH16 0
+    CMP
+    JLT __imul_neg_b
+    JMP __imul_mul_loop
+__imul_neg_b:
+    PUSHR r3
+    NEG
+    POPR r3
+    PUSHR r4
+    PUSH16 1
+    XOR
+    POPR r4
+
+__imul_mul_loop:
+    ; --- while b != 0 ---
+    PUSHR r3
+    PUSH16 0
+    CMP
+    JEQ __imul_apply_sign
+
+    ; --- if b & 1 != 0, add a to accumulator ---
+    PUSHR r3
+    PUSH16 1
+    AND
+    PUSH16 0
+    CMP
+    JEQ __imul_skip_add
+    PUSHR r0
+    PUSHR r2
+    ADD
+    POPR r0
+__imul_skip_add:
+
+    ; --- shift a left ---
+    PUSHR r2
+    PUSH16 1
+    SHFT
+    POPR r2
+
+    ; --- shift b right ---
+    PUSHR r3
+    PUSH16 1
+	NEG
+    SHFT
+    POPR r3
+
+    JMP __imul_mul_loop
+
+__imul_apply_sign:
+    ; --- apply sign ---
+    PUSHR r4
+    PUSH16 0
+    CMP
+    JEQ __imul_done
+    PUSHR r0
+    NEG
+    POPR r0
+
+__imul_done:
+    PUSHR r0      ; push result on stack
+    RET

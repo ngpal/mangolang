@@ -1,7 +1,8 @@
 Instruction Set (VM v0.1.1)
 
-- 4 general purpose registers - r0 to r3
-- sp, fp are r4, r5
+- 8 general purpose registers - r0 to r7
+- sp, fp are r8, r9
+- r0-r5 is volatile,
 - 2 register IDs may take up 1 byte low 4 bits one reg, high 4 bits the second
 
 ### **0x0\_ — Stack & Control**

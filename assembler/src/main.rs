@@ -129,9 +129,9 @@ pub fn resolve_conv_instrs(instrs: Vec<Instr>) -> Vec<Instr> {
                 Instr::Stw,
             ],
             Instr::Sub => vec![Instr::Not, Instr::Push(1), Instr::Add, Instr::Add],
-            Instr::Mul => vec![Instr::CallLbl("__imul".to_string())],
-            Instr::Div => vec![Instr::CallLbl("__idiv".to_string())],
-            Instr::Mod => vec![Instr::CallLbl("__imod".to_string())],
+            Instr::Mul => vec![Instr::CallLbl("__imul".to_string()), Instr::Popr(0)],
+            Instr::Div => vec![Instr::CallLbl("__idiv".to_string()), Instr::Popr(0)],
+            Instr::Mod => vec![Instr::CallLbl("__imod".to_string()), Instr::Popr(0)],
             Instr::Neg => vec![Instr::Not, Instr::Push(1), Instr::Add],
             _ => vec![instr],
         })
@@ -157,6 +157,7 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             Instr::Add => vec![0x30],
             Instr::Cmp => vec![0x35],
             Instr::Mod => vec![0x36],
+            Instr::Not => vec![0x40],
             Instr::And => vec![0x41],
             Instr::Or => vec![0x42],
             Instr::Xor => vec![0x43],
@@ -173,8 +174,7 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             | Instr::Data(_) => {
                 unreachable!("gen_bin called on unresolved symbolic instruction")
             }
-            Instr::Not
-            | Instr::Ldb
+            Instr::Ldb
             | Instr::Stb
             | Instr::Sub
             | Instr::Mul
@@ -182,7 +182,10 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             | Instr::Neg
             | Instr::Ldr(_, _)
             | Instr::Str(_, _) => {
-                unreachable!("gen_bin called on unresolved convenience instructions")
+                unreachable!(
+                    "gen_bin called on unresolved convenience instructions {:?}",
+                    &instr
+                )
             }
         });
     }

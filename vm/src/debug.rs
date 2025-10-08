@@ -386,7 +386,11 @@ impl<'a> Debugger<'a> {
             Span::raw(format!("r0={:04X}  ", r(0))),
             Span::raw(format!("r1={:04X}  ", r(1))),
             Span::raw(format!("r2={:04X}  ", r(2))),
-            Span::raw(format!("r3={:04X}", r(3))),
+            Span::raw(format!("r3={:04X}  ", r(3))),
+            Span::raw(format!("r4={:04X}  ", r(4))),
+            Span::raw(format!("r5={:04X}  ", r(5))),
+            Span::raw(format!("r6={:04X}  ", r(6))),
+            Span::raw(format!("r7={:04X}", r(7))),
         ]));
 
         // line 2: SP, FP, IP, flags

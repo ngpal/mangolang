@@ -57,7 +57,7 @@ impl Instr {
             Instr::Mov(_, _) => 2,
             Instr::Pushr(_) => 2,
             Instr::Popr(_) => 2,
-            Instr::Add | Instr::Not | Instr::Halt => 1,
+            Instr::Add | Instr::Not | Instr::Halt | Instr::Cmp => 1,
             Instr::Lbl(_) => 0,
             Instr::JmpLbl(_) => 2,
             Instr::JltLbl(_) => 2,
@@ -76,12 +76,11 @@ impl Instr {
             Instr::Stb => 1,
             Instr::Ldr(_, _)
             | Instr::Str(_, _)
-            | Instr::Cmp
             | Instr::Sub
             | Instr::Mul
             | Instr::Div
             | Instr::Neg
-            | Instr::Mod => unreachable!("byte_len called on convenience instruction"),
+            | Instr::Mod => unreachable!("byte_len called on convenience instruction {:?}", self),
         }
     }
 }

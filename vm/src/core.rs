@@ -19,28 +19,28 @@ pub struct Flags {
     pub v: bool,
 }
 
-pub struct Registers([u16; 6]); // 4 general purpose, sp, fp
+pub struct Registers([u16; 10]); // 8 general purpose, sp, fp
 
 impl Registers {
     pub fn new() -> Self {
-        Self([0, 0, 0, 0, 0xFFFE, 0xFFFE]) // Stack and fram pointers are at the bottom
+        Self([0, 0, 0, 0, 0, 0, 0, 0, 0xFFFE, 0xFFFE]) // Stack and fram pointers are at the bottom
     }
 
     // general purpose
     pub fn get_reg(&self, id: u8) -> RuntimeResult<u16> {
         Ok(match id {
-            0..=3 => self.0[id as usize],
-            4 => self.get_sp(),
-            5 => self.get_fp(),
+            0..=7 => self.0[id as usize],
+            8 => self.get_sp(),
+            9 => self.get_fp(),
             _ => return Err(RuntimeError(format!("invalid general register r{}", id))),
         })
     }
 
     pub fn set_reg(&mut self, id: u8, val: u16) -> RuntimeResult<()> {
         match id {
-            0..=3 => self.0[id as usize] = val,
-            4 => self.set_sp(val),
-            5 => self.set_fp(val),
+            0..=7 => self.0[id as usize] = val,
+            8 => self.set_sp(val),
+            9 => self.set_fp(val),
             _ => return Err(RuntimeError(format!("invalid general register r{}", id))),
         }
 
@@ -49,28 +49,28 @@ impl Registers {
 
     // stack pointer
     pub fn get_sp(&self) -> u16 {
-        self.0[4]
+        self.0[8]
     }
 
     pub fn set_sp(&mut self, val: u16) {
-        self.0[4] = val;
+        self.0[8] = val;
     }
 
     pub fn inc_sp(&mut self, amt: u16) {
-        self.0[4] = self.0[4].wrapping_add(amt);
+        self.0[8] = self.0[8].wrapping_add(amt);
     }
 
     pub fn dec_sp(&mut self, amt: u16) {
-        self.0[4] = self.0[4].wrapping_sub(amt);
+        self.0[8] = self.0[8].wrapping_sub(amt);
     }
 
     // frame pointer
     pub fn get_fp(&self) -> u16 {
-        self.0[5]
+        self.0[9]
     }
 
     pub fn set_fp(&mut self, val: u16) {
-        self.0[5] = val;
+        self.0[9] = val;
     }
 }
 
@@ -253,6 +253,7 @@ impl Vm {
 
                 let (result, overflow) = match instr {
                     Instr::Add => left.overflowing_add(right),
+                    Instr::Cmp => left.overflowing_sub(right),
                     Instr::And => (left & right, false),
                     Instr::Or => (left | right, false),
                     Instr::Xor => (left ^ right, false),

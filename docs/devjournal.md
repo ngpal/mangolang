@@ -320,6 +320,11 @@ main:
   - [x] convenience instructions (or macros/subroutines) are expanded out in the assembler
   - [x] remove depricated instructions from the compiler
   - [ ] implement mul, div and mod subroutines
+    - [ ] expand to 8 GPRs, just makes life easier writing subroutines
+      - r0-r5 caller-saved (volatile)
+      - r6-r7 callee-saved (preserved)
+      - r8 sp
+      - r9 fp
 
 - [ ] I/O via interrupts and not memory mapping
   - [ ] register for interrupt arguments
