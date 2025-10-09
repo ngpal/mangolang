@@ -336,6 +336,7 @@ main:
   - [x] Tear out video memory from the VM
   - [x] Implement it as a seperate array in the debug screen
   - This is relevant because it DRASTICALLY reduces the code size for debugging purposes
+  - Kinda Magic-y atm
 
 # 09-10-2025
 
@@ -344,8 +345,7 @@ main:
 - [x] new bug because of ordering of value and addr in `STW` cant match with `STR`
   - [x] rearrange ordering
 
-- [ ] I/O via interrupts and not memory mapping
-  - [ ] register for interrupt arguments
+- [ ] Proper interrupts for printing and controlling the cursor
   - [ ] hook up to a terminal?
 - [ ] bigger screen?
 - [ ] immediate values in the instructions
