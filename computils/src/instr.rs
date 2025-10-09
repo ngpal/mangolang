@@ -36,6 +36,8 @@ pub enum Instr {
     Pushr(u8),
     Popr(u8),
 
+    Int(u8),
+
     // pseudo instructions
     Lbl(String),
     CallLbl(String),
@@ -50,6 +52,7 @@ impl Instr {
     pub fn byte_len(&self) -> usize {
         match self {
             Instr::Push(_) | Instr::Data(_) => 3,
+            Instr::Int(_) => 2,
             Instr::Jmp(_) => 2,
             Instr::Jlt(_) => 2,
             Instr::Jgt(_) => 2,

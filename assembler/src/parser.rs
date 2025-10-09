@@ -68,23 +68,23 @@ fn parse_reg(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
     }
 }
 
-// fn parse_imm8(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
-//     let tok = token.ok_or_else(|| AssemblerError {
-//         msg: "missing 8-bit immediate".into(),
-//         line: Some(lineno + 1),
-//     })?;
+fn parse_imm8(token: Option<&str>, lineno: usize) -> AssemblerResult<u8> {
+    let tok = token.ok_or_else(|| AssemblerError {
+        msg: "missing 8-bit immediate".into(),
+        line: Some(lineno + 1),
+    })?;
 
-//     let val = if let Some(hex) = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
-//         u8::from_str_radix(hex, 16)
-//     } else {
-//         tok.parse::<u8>()
-//     };
+    let val = if let Some(hex) = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
+        u8::from_str_radix(hex, 16)
+    } else {
+        tok.parse::<u8>()
+    };
 
-//     val.map_err(|_| AssemblerError {
-//         msg: format!("invalid 8-bit immediate `{}`", tok),
-//         line: Some(lineno + 1),
-//     })
-// }
+    val.map_err(|_| AssemblerError {
+        msg: format!("invalid 8-bit immediate `{}`", tok),
+        line: Some(lineno + 1),
+    })
+}
 
 fn parse_imm8_signed(token: Option<&str>, lineno: usize) -> AssemblerResult<i8> {
     let tok = token.ok_or_else(|| AssemblerError {
@@ -354,6 +354,9 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Assembly> {
 
             // data
             "data" => Instr::Data(parse_label(Some(rest), lineno)?),
+
+            // int
+            "int" => Instr::Int(parse_imm8(Some(rest), lineno)?),
 
             _ => {
                 return Err(AssemblerError {

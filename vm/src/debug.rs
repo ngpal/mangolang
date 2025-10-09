@@ -15,12 +15,14 @@ use ratatui::{
 use std::io::{self, stdout};
 
 use crate::{
-    core::{VIDEO_BASE, VIDEO_HEIGHT, VIDEO_WIDTH, Vm},
+    core::Vm,
     instr::Instr,
+    video::{VIDEO_HEIGHT, VIDEO_WIDTH, Video},
 };
 
 pub struct Debugger<'a> {
     vm: &'a mut Vm,
+    video: Video,
     mem_offset: usize,
     speed: u64, // milliseconds per instruction
 }
@@ -29,6 +31,7 @@ impl<'a> Debugger<'a> {
     pub fn new(vm: &'a mut Vm) -> Self {
         Self {
             vm,
+            video: Video::new(),
             mem_offset: 0,
             speed: 100,
         }
@@ -98,7 +101,7 @@ impl<'a> Debugger<'a> {
                         KeyCode::Char('s') => {
                             // single step
                             if !halted && !running {
-                                match self.vm.exec_instruction() {
+                                match self.vm.exec_instruction(&mut self.video) {
                                     Ok(true) => {
                                         info_lines.push("program halted".into());
                                         halted = true;
@@ -142,7 +145,7 @@ impl<'a> Debugger<'a> {
             }
 
             if running && !halted {
-                match self.vm.exec_instruction() {
+                match self.vm.exec_instruction(&mut self.video) {
                     Ok(true) => {
                         info_lines.push("program halted".into());
                         halted = true;
@@ -168,9 +171,9 @@ impl<'a> Debugger<'a> {
             .map(|y| {
                 let mut line = String::with_capacity(inner_width);
                 for x in 0..VIDEO_WIDTH {
-                    let idx = VIDEO_BASE + y * VIDEO_WIDTH + x;
-                    let ch = if idx < self.vm.memory.len() {
-                        let byte = self.vm.memory[idx];
+                    let idx = y * VIDEO_WIDTH + x;
+                    let ch = if idx < (VIDEO_HEIGHT * VIDEO_WIDTH) {
+                        let byte = self.video.get_char(idx);
                         if byte.is_ascii_graphic() || byte == b' ' {
                             byte as char
                         } else {
@@ -323,10 +326,10 @@ impl<'a> Debugger<'a> {
                 format!("PUSH16 {}", imm)
             }
             0x0F => "HALT".into(),
-            0x12 => "LOADP".into(),
-            0x13 => "STOREP".into(),
-            0x16 => "LOADPB".into(),
-            0x17 => "STOREPB".into(),
+            0x12 => "LDW".into(),
+            0x13 => "STW".into(),
+            0x16 => "LDB".into(),
+            0x17 => "STB".into(),
             0x20 => {
                 format!("JMP8 {}", self.vm.memory[addr + 1] as i8)
             }
@@ -363,6 +366,9 @@ impl<'a> Debugger<'a> {
             }
             0x52 => {
                 format!("POPR {}", Vm::reg_name(self.vm.memory[addr + 1]))
+            }
+            0x70 => {
+                format!("INT {}", self.vm.memory[addr + 1])
             }
             _ => format!("DB 0x{:02X}", op),
         };

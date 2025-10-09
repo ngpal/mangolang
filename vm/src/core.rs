@@ -1,16 +1,12 @@
 use crate::{
     error::{RuntimeError, RuntimeResult},
     instr::Instr,
+    video::Video,
 };
 
 const MBIN_MAGIC: &[u8; 4] = b"MBIN";
 pub const MEM_SIZE: usize = 0x10000;
 const MAX_PROGRAM_SIZE: usize = 32 * 1024; // 32KB
-
-pub const VIDEO_WIDTH: usize = 40;
-pub const VIDEO_HEIGHT: usize = 12;
-pub const VIDEO_BASE: usize = 0x8000;
-pub const INFO_HEIGHT: usize = 5;
 
 #[derive(Default)]
 pub struct Flags {
@@ -236,7 +232,7 @@ impl Vm {
     }
 
     // Return halt signal
-    pub fn exec_instruction(&mut self) -> RuntimeResult<bool> {
+    pub fn exec_instruction(&mut self, video: &mut Video) -> RuntimeResult<bool> {
         let byte = self.fetch_byte();
         let instr = Instr::from_u8(byte)
             .ok_or(RuntimeError(format!("unknown instruction: 0x{:2X}", byte)))?;
@@ -317,8 +313,8 @@ impl Vm {
                 self.push_word(self.read_word(addr))?;
             }
             Instr::Stw => {
-                let val = self.pop_word()?;
                 let addr = self.pop_word()?;
+                let val = self.pop_word()?;
                 self.write_word(addr, val)?;
             }
             Instr::Ldb => {
@@ -326,8 +322,8 @@ impl Vm {
                 self.push_word(self.read_byte(addr) as u16)?;
             }
             Instr::Stb => {
-                let val = self.pop_word()? as u8;
                 let addr = self.pop_word()?;
+                let val = self.pop_word()? as u8;
                 self.write_byte(addr, val)?;
             }
             Instr::Call => {
@@ -338,6 +334,10 @@ impl Vm {
             Instr::Ret => {
                 let addr = self.pop_word()?;
                 self.ip = addr;
+            }
+            Instr::Int => {
+                let int = self.fetch_byte();
+                self.exec_interrupt(int, video)?;
             }
         }
 
@@ -357,8 +357,8 @@ impl Vm {
 
     pub fn reg_name(reg: u8) -> String {
         match reg {
-            4 => "sp".into(),
-            5 => "fp".into(),
+            8 => "SP".into(),
+            9 => "FP".into(),
             n => format!("r{}", n),
         }
     }
@@ -370,13 +370,11 @@ impl Vm {
         while addr < end && addr < self.program_end {
             let byte = self.memory[addr];
             let instr = Instr::from_u8(byte);
-            let mut size = 1;
             let line = match instr {
                 Some(Instr::Push16) => {
                     if addr + 2 < self.memory.len() {
                         let imm =
                             u16::from_le_bytes([self.memory[addr + 1], self.memory[addr + 2]]);
-                        size = 3;
                         format!("0x{:04X}: PUSH16 {}", addr, imm)
                     } else {
                         format!("0x{:04X}: PUSH16 ???", addr)
@@ -395,29 +393,23 @@ impl Vm {
                 Some(Instr::Ldb) => format!("0x{:04X}: LOADPB", addr),
                 Some(Instr::Stb) => format!("0x{:04X}: STOREPB", addr),
                 Some(Instr::Jmp8) => {
-                    size = 2;
                     format!("0x{:04X}: JMP8 {}", addr, self.memory[addr + 1] as i8)
                 }
                 Some(Instr::Jlt8) => {
-                    size = 2;
                     format!("0x{:04X}: JLT8 {}", addr, self.memory[addr + 1] as i8)
                 }
                 Some(Instr::Jgt8) => {
-                    size = 2;
                     format!("0x{:04X}: JGT8 {}", addr, self.memory[addr + 1] as i8)
                 }
                 Some(Instr::Jeq8) => {
-                    size = 2;
                     format!("0x{:04X}: JEQ8 {}", addr, self.memory[addr + 1] as i8)
                 }
                 Some(Instr::Call) => {
-                    size = 3;
                     let target = u16::from_le_bytes([self.memory[addr + 1], self.memory[addr + 2]]);
                     format!("0x{:04X}: CALL 0x{:04X}", addr, target)
                 }
                 Some(Instr::Ret) => format!("0x{:04X}: RET", addr),
                 Some(Instr::Mov) => {
-                    size = 2;
                     let byte = self.memory[addr + 1];
                     let rd = byte >> 4;
                     let rs = byte & 0xF;
@@ -429,20 +421,33 @@ impl Vm {
                     )
                 }
                 Some(Instr::Pushr) => {
-                    size = 2;
                     format!("0x{:04X}: PUSHR r{}", addr, self.memory[addr + 1])
                 }
                 Some(Instr::Popr) => {
-                    size = 2;
                     format!("0x{:04X}: POPR r{}", addr, self.memory[addr + 1])
+                }
+                Some(Instr::Int) => {
+                    format!("0x{:04X}: INT {}", addr, self.memory[addr + 1])
                 }
                 None => format!("0x{:04X}: DB 0x{:02X}", addr, byte),
             };
 
+            let size = instr.map(|x| x.byte_len()).unwrap_or(1);
             output.push(line);
             addr += size;
         }
 
         output
+    }
+
+    fn exec_interrupt(&self, int: u8, video: &mut Video) -> RuntimeResult<()> {
+        match int {
+            // print to video
+            0 => {
+                video.put_char(self.registers.get_reg(0)? as u8);
+            }
+            _ => return Err(RuntimeError(format!("unkown interrupt {}", int))),
+        }
+        Ok(())
     }
 }

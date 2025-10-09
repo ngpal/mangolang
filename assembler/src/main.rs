@@ -122,6 +122,7 @@ pub fn resolve_conv_instrs(instrs: Vec<Instr>) -> Vec<Instr> {
                 Instr::Add,
                 Instr::Ldw,
             ],
+            // a little complex because value is on top of the stack
             Instr::Str(rd, imm) => vec![
                 Instr::Pushr(rd),
                 Instr::Push(imm as i16 as u16),
@@ -202,6 +203,7 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
                     &instr
                 )
             }
+            Instr::Int(int) => vec![0x70, *int],
         });
     }
 

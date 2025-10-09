@@ -27,6 +27,8 @@ pub enum Instr {
     Mov = 0x50,
     Pushr = 0x51,
     Popr = 0x52,
+
+    Int = 0x70,
 }
 
 impl Instr {
@@ -54,6 +56,7 @@ impl Instr {
             0x50 => Some(Instr::Mov),
             0x51 => Some(Instr::Pushr),
             0x52 => Some(Instr::Popr),
+            0x70 => Some(Instr::Int),
             _ => None,
         }
     }
@@ -79,6 +82,7 @@ impl Instr {
             Instr::Stb => 1,
             Instr::Call => 3,
             Instr::Ret => 1,
+            Instr::Int => 2,
         }
     }
 }

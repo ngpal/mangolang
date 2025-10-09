@@ -5,6 +5,12 @@ Instruction Set (VM v0.1.1)
 - r0-r5 is volatile,
 - 2 register IDs may take up 1 byte low 4 bits one reg, high 4 bits the second
 
+### Interrupt table
+
+| code | name  | arguments | description               |
+| ---- | ----- | --------- | ------------------------- |
+| 0x00 | print | r0 - imm8 | prints r0 to the terminal |
+
 ### **0x0\_ — Stack & Control**
 
 | Opcode | Mnemonic | Operands | Notes             |
@@ -14,16 +20,16 @@ Instruction Set (VM v0.1.1)
 
 ### **0x1\_ — Memory**
 
-| Opcode | Mnemonic            | Operands | Notes                                            |
-| ------ | ------------------- | -------- | ------------------------------------------------ |
-| 0x10   | LOAD8 (depricated)  | addr8    | load from memory                                 |
-| 0x11   | STORE8 (depricated) | addr8    | store to memory                                  |
-| 0x12   | LDW                 | -        | pops addr and pushes mem\[addr] to stack         |
-| 0x13   | STW                 | -        | pops val and addr from stack, stores val at addr |
-| 0x16   | LDB                 | -        | pops addr and pushes byte from addr to stack     |
-| 0x17   | STB                 | -        | pops addr and word, writes lower bytes to stack  |
-| 0x14   | LDR (convenience)   | rs+imm   | push val @ \[rs + imm] (uses LDW under the hood) |
-| 0x15   | STR (convenience)   | rd+imm   | \[rd + imm] = pop (uses STW under the hood)      |
+| Opcode | Mnemonic            | Operands | Notes                                              |
+| ------ | ------------------- | -------- | -------------------------------------------------- |
+| 0x10   | LOAD8 (depricated)  | addr8    | load from memory                                   |
+| 0x11   | STORE8 (depricated) | addr8    | store to memory                                    |
+| 0x12   | LDW                 | -        | pops addr and pushes mem\[addr] to stack           |
+| 0x13   | STW                 | -        | pops addr and value from stack, stores val at addr |
+| 0x16   | LDB                 | -        | pops addr and pushes byte from addr to stack       |
+| 0x17   | STB                 | -        | pops addr and word, writes lower bytes to stack    |
+| 0x14   | LDR (convenience)   | rs+imm   | push val @ \[rs + imm] (uses LDW under the hood)   |
+| 0x15   | STR (convenience)   | rd+imm   | \[rd + imm] = pop (uses STW under the hood)        |
 
 ### **0x2\_ — Jumps & Branches**
 
@@ -72,3 +78,9 @@ Instruction Set (VM v0.1.1)
 | ------ | ------------------ | -------- | ---------------------------------------- |
 | 0x60   | PRINT (depricated) | -        | pop from stack and write byte at cursor  |
 | 0x61   | MVCUR (depricated) | rel8     | move cursor relative to current position |
+
+### **0x7\_ - Interrupts**
+
+| Opcode | Mnemonic | Operands | Notes                   |
+| ------ | -------- | -------- | ----------------------- |
+| 0x70   | INT      | imm8     | executes said interrupt |

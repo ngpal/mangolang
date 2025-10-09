@@ -315,7 +315,9 @@ main:
 
 ### VM v0.1.1
 
-- [ ] reduce/simplify instruction set
+# 07-10-2025
+
+- [x] reduce/simplify instruction set
   - [x] warnings in the VM for depricated instructions
   - [x] convenience instructions (or macros/subroutines) are expanded out in the assembler
   - [x] remove depricated instructions from the compiler
@@ -326,12 +328,21 @@ main:
       - r8 sp
       - r9 fp
 
+# 08-10-2025
+
 ### Sidequest ALERT
 
-- [ ] Interrupt/like command to put a character on the screen
-  - [ ] Tear out video memory from the VM
-  - [ ] Implement it as a seperate array in the debug screen
+- [x] Interrupt/like command to put a character on the screen
+  - [x] Tear out video memory from the VM
+  - [x] Implement it as a seperate array in the debug screen
   - This is relevant because it DRASTICALLY reduces the code size for debugging purposes
+
+# 09-10-2025
+
+- [x] fix the horrible bug, i suspect something is getting messed up in the indexing logic
+  - it was failure to clear r0 in the beginning of the mul subroutine
+- [x] new bug because of ordering of value and addr in `STW` cant match with `STR`
+  - [x] rearrange ordering
 
 - [ ] I/O via interrupts and not memory mapping
   - [ ] register for interrupt arguments

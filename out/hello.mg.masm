@@ -1,5 +1,5 @@
 @section data
-__str_0 = "hi!"
+__str_0 = "this won't work all the time! (strings straight in an argument)"
 @section text
 CALL main
 HALT
@@ -58,12 +58,12 @@ ADD
 POPR sp
 DATA __str_0
 CALL print_string
-PUSHR sp
+PUSHR r4
 PUSH16 2
 PUSH16 1
 MUL
 ADD
-POPR sp
+POPR r4
 MOV sp, fp
 POPR fp
 RET

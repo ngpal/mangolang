@@ -60,12 +60,12 @@ fn main() {
         process::exit(0);
     }
 
-    // always run in video mode
-    let mut video = video::VideoMemory::new();
-    if let Err(err) = video.run(&mut vm) {
-        eprintln!("video error: {}", err);
-        process::exit(1);
-    }
+    // // always run in video mode
+    // let mut video = video::VideoMemory::new();
+    // if let Err(err) = video.run(&mut vm) {
+    //     eprintln!("video error: {}", err);
+    //     process::exit(1);
+    // }
 
     // optional stack inspection
     if cli.show_top {
