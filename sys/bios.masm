@@ -1,0 +1,47 @@
+; this will be the BIOS code for the assembler
+
+@define IVT_BASE = 0x0100
+@define IH_SIZE = 0x0100
+@define IH_BASE = 0x0110
+@define USER_CODE_BASE = 0x0910
+
+; load IVT into memory
+@section text
+	; counter on r0
+	; current IH_ADDR on r1
+	; current BASE_ADDR on r2
+
+	PUSH16  =IH_BASE
+	POPR    r1
+
+	PUSH16  =IVT_BASE
+	POPR    r2
+
+loop:
+	PUSHR   r1
+	STR     [r2, 0]
+
+	PUSHR   r1
+	PUSH16  =IH_SIZE
+	ADD
+	POPR    r1
+
+	PUSHR   r2
+	PUSH16  2
+	ADD
+	POPR    r2
+
+	PUSHR   r0
+	PUSH16  1
+	ADD
+	POPR    r0
+
+	PUSHR   r0
+	PUSH16  7
+	CMP
+
+	JEQ     end
+	JMP     loop
+
+end:
+	SETIP   =USER_CODE_BASE

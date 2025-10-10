@@ -16,6 +16,8 @@ const IVT_START: usize = 0x0100;
 // const ROM_START: usize = 0x0000;
 pub const MEM_SIZE: usize = 0x10000;
 
+pub const MMIO_PRINT: usize = 0x4910;
+
 #[derive(Default)]
 pub struct Flags {
     pub n: bool,
@@ -317,6 +319,7 @@ impl Vm {
             }
         }
 
+        self.update_video();
         Ok(false)
     }
 
@@ -331,6 +334,13 @@ impl Vm {
             8 => "SP".into(),
             9 => "FP".into(),
             n => format!("r{}", n),
+        }
+    }
+
+    pub fn update_video(&mut self) {
+        if self.memory[MMIO_PRINT] != 0 {
+            self.video.put_char(self.memory[MMIO_PRINT]);
+            self.memory[MMIO_PRINT] = 0
         }
     }
 
@@ -417,8 +427,10 @@ impl Vm {
     fn exec_interrupt(&mut self, int: u8) -> RuntimeResult<()> {
         match int {
             // print to video
-            0 => {
-                self.video.put_char(self.registers.get_reg(0)? as u8);
+            0..=7 => {
+                let addr = self.read_word(IVT_START as u16 + int as u16 * 2);
+                self.push_word(self.ip)?;
+                self.ip = addr;
             }
             _ => return Err(RuntimeError(format!("unkown interrupt {}", int))),
         }

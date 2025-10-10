@@ -186,7 +186,7 @@ fn main() -> io::Result<()> {
     // default output: a.out
     let output = cli.output.unwrap_or_else(|| "a.out".to_string());
     fs::write(&output, binary)?;
-    println!("wrote binary to {}", output);
+    println!("wrote binary to {}; base offset 0x{:4X}", output, base);
 
     Ok(())
 }

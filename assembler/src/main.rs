@@ -204,6 +204,8 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
                 )
             }
             Instr::Int(int) => vec![0x70, *int],
+            Instr::Iret => vec![0x71],
+            Instr::SetIp(addr) => vec![0x72, (*addr & 0xFF) as u8, (*addr >> 8) as u8],
         });
     }
 
