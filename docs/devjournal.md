@@ -351,41 +351,41 @@ main:
   - [ ] emulate a disk with 65,536 (2 bytes) sectors, each sector 256 bytes. total 16 MB of storage
   - [ ] first sector contains BIOS, its loaded by the host from the ROM
   - [ ] the BIOS then gets executed, which saves the IVT, and loads the Interrupt handlers into memory
-    - [ ] MMIO definitions for disk and terminal
-    - [ ] kernel mode and user mode
-      - [ ] switch to kernel mode when calling `INT`
-      - [ ] `IRET` switches back to user mode
-      - [ ] user mode only allows writing to stack (and allocated parts of heap but we dont have a heap right now)
-      - [ ] kernel mode can modify anywhere, except rom, nothing can write to rom
+    - [x] kernel mode and user mode
+      - [x] switch to kernel mode when calling `INT`
+      - [x] `IRET` switches back to user mode
+      - [x] user mode only allows writing to stack (and allocated parts of heap but we dont have a heap right now)
+      - [x] kernel mode can modify anywhere, except rom, nothing can write to rom
     - [ ] lets define 64 interrupts for now
       - [ ] 0 - print char
       - [ ] 1 - read disk
       - [ ] rest can `IRET` straight back
+    - [ ] MMIO definitions for disk and terminal
     - [ ] enterrupt handlers can live in sectors 1-8 and will be loaded in by the BIOS
     - [ ] user code can live in sector 9-72 (16KB) (64 sectors)
 
 ## Memory Layout
 
-| Start  | Stop   | Size              | Purpose                                                       |
-| ------ | ------ | ----------------- | ------------------------------------------------------------- |
-| 0x0000 | 0x00FF | 256B              | ROM - BIOS gets loaded in here from sector 1                  |
-| 0x0100 | 0x010F | 32B               | IVT - Loaded in by the BIOS                                   |
-| 0x0110 | 0x090F | 2KB               | Interrupt Handlers                                            |
-| 0x0910 | 0x490F | 16KB              | User code                                                     |
-| 0x4910 | 0x4A0F | 256B              | MMIO - currently just                                         |
-| 0x4A10 | 0xFEFF | 46,320B ~ 45.23KB | Heap memory (currenlty unused b/c no heap implementation lol) |
-| 0xFF00 | 0xFFFF | 256B              | Stack Memory                                                  |
+| Start  | Stop   | Size              | Purpose                                      |
+| ------ | ------ | ----------------- | -------------------------------------------- |
+| 0x0000 | 0x00FF | 256B              | ROM - BIOS gets loaded in here from sector 1 |
+| 0x0100 | 0x010F | 32B               | IVT - Loaded in by the BIOS                  |
+| 0x0110 | 0x090F | 2KB               | Interrupt Handlers                           |
+| 0x0910 | 0x490F | 16KB              | User code                                    |
+| 0x4910 | 0x4A0F | 256B              | MMIO - currently just                        |
+| 0x4A10 | 0xFEFF | 46,320B ~ 45.23KB | Heap memory                                  |
+| 0xFF00 | 0xFFFF | 256B              | Stack Memory                                 |
 
 ## MMIO Layout
 
-| Name        | Stop   | Size | Purpose                                                       |
-| ----------- | ------ | ---- | ------------------------------------------------------------- |
-| PRINT       | 0x4910 | 1B   | Data write to terminal, is cleared by terminal after read     |
-| INPUT       | 0x4911 | 1B   | Data input from terminal, 0 if no input                       |
-| DISK_SEC    | 0x4920 | 2B   | Sector address to load                                        |
-| DISK_ADR    | 0x4922 | 2B   | Address to read/write to/from                                 |
-| DISK_CMD    | 0x4923 | 1B   | 0 = idle , 1 = read, 2 = write (no write to disk allowed yet) |
-| DISK_STATUS | 0x4924 | 1B   | 0 = ready, 1 = busy, 2 = error                                |
+| Name        | Stop   | Size | Purpose                                      |
+| ----------- | ------ | ---- | -------------------------------------------- |
+| PRINT       | 0x4910 | 1B   | Data write to terminal, cleared after read   |
+| INPUT       | 0x4911 | 1B   | Data input from terminal, 0 if no input      |
+| DISK_SEC    | 0x4920 | 2B   | Sector address to load                       |
+| DISK_ADR    | 0x4922 | 2B   | Address to read/write to/from                |
+| DISK_CMD    | 0x4923 | 1B   | 0 = idle , 1 = read, 2 = write (unsupported) |
+| DISK_STATUS | 0x4924 | 1B   | 0 = ready, 1 = busy, 2 = error               |
 
 - [ ] immediate values in the instructions?
 - [ ] allow multiple files

@@ -5,14 +5,22 @@ use crate::{
 };
 
 const MBIN_MAGIC: &[u8; 4] = b"MBIN";
+const STACK_START: usize = 0xFF00;
+// const HEAP_START: usize = 0x4A10;
+const MMIO_START: usize = 0x4910;
+const USER_CODE_START: usize = 0x0910;
+const USER_CODE_SIZE: usize = MMIO_START - USER_CODE_START;
+// const INT_HANDLER_START: usize = 0x0110;
+const IVT_START: usize = 0x0100;
+// const ROM_START: usize = 0x0000;
 pub const MEM_SIZE: usize = 0x10000;
-const MAX_PROGRAM_SIZE: usize = 32 * 1024; // 32KB
 
 #[derive(Default)]
 pub struct Flags {
     pub n: bool,
     pub z: bool,
     pub v: bool,
+    pub k: bool, // kernel mode
 }
 
 pub struct Registers([u16; 10]); // 8 general purpose, sp, fp
@@ -101,10 +109,10 @@ impl Vm {
             ));
         }
 
-        if program.len() - 4 > MAX_PROGRAM_SIZE {
+        if program.len() - 4 > USER_CODE_SIZE {
             return Err(RuntimeError(format!(
                 "Program exceeds size of {} bytes",
-                MAX_PROGRAM_SIZE
+                USER_CODE_SIZE
             )));
         }
 
@@ -119,36 +127,6 @@ impl Vm {
         Ok(())
     }
 
-    // fn allocate_locals(&mut self) -> RuntimeResult<()> {
-    //     let mut max_local = 0;
-    //     let mut ip = 0;
-    //     let program_start = 0; // memory index 0 now contains first instruction
-
-    //     while ip < self.program_end {
-    //         let instr_byte = self.memory[program_start + ip];
-    //         if instr_byte == Instr::Store8 as u8 {
-    //             max_local = cmp::max(max_local, self.memory[program_start + ip + 1]);
-    //         }
-
-    //         ip += Instr::from_u8(instr_byte)
-    //             .ok_or(RuntimeError(format!(
-    //                 "formatting issue on byte {} (0x{:X}) in the instructions",
-    //                 ip, instr_byte
-    //             )))?
-    //             .byte_len();
-    //     }
-
-    //     let space_needed = 2 * (max_local as usize + 1);
-    //     if (self.registers.get_sp() as usize) < space_needed + self.program_end {
-    //         return Err(RuntimeError(
-    //             "memory overflow - too many local variables".into(),
-    //         ));
-    //     }
-
-    //     self.registers.dec_sp(space_needed as u16);
-    //     Ok(())
-    // }
-
     fn read_word(&self, addr: u16) -> u16 {
         let lo = self.memory[addr as usize];
         let hi = self.memory[addr as usize + 1];
@@ -156,10 +134,12 @@ impl Vm {
     }
 
     fn write_word(&mut self, addr: u16, word: u16) -> RuntimeResult<()> {
-        if (addr as usize) < self.program_end {
+        if (addr as usize) < STACK_START && !self.flags.k {
             return Err(RuntimeError(
-                "invalid attempt to write to memory in text area".to_string(),
+                "attempt to write outside of stack in user mode".to_string(),
             ));
+        } else if (addr as usize) < IVT_START {
+            return Err(RuntimeError("attempt to write to ROM".to_string()));
         }
 
         self.memory[addr as usize] = (word & 0xFF) as u8;
@@ -193,9 +173,9 @@ impl Vm {
     }
 
     fn write_byte(&mut self, addr: u16, val: u8) -> RuntimeResult<()> {
-        if (addr as usize) < self.program_end {
+        if (addr as usize) < STACK_START && !self.flags.k {
             return Err(RuntimeError(
-                "invalid attempt to write to memory in text area".to_string(),
+                "attemtpt to write outside of stack in user mode".to_string(),
             ));
         }
 
@@ -338,6 +318,18 @@ impl Vm {
             Instr::Int => {
                 let int = self.fetch_byte();
                 self.exec_interrupt(int, video)?;
+                self.flags.k = true;
+            }
+            Instr::Iret => {
+                if !self.flags.k {
+                    return Err(RuntimeError(
+                        "Attempted to run privilaged instruction in user mode".to_string(),
+                    ));
+                }
+
+                let addr = self.pop_word()?;
+                self.ip = addr;
+                self.flags.k = false;
             }
         }
 
@@ -429,6 +421,9 @@ impl Vm {
                 Some(Instr::Int) => {
                     format!("0x{:04X}: INT {}", addr, self.memory[addr + 1])
                 }
+                Some(Instr::Iret) => {
+                    format!("0x{:04X}: IRET", addr)
+                }
                 None => format!("0x{:04X}: DB 0x{:02X}", addr, byte),
             };
 
@@ -440,7 +435,7 @@ impl Vm {
         output
     }
 
-    fn exec_interrupt(&self, int: u8, video: &mut Video) -> RuntimeResult<()> {
+    fn exec_interrupt(&mut self, int: u8, video: &mut Video) -> RuntimeResult<()> {
         match int {
             // print to video
             0 => {
@@ -448,6 +443,9 @@ impl Vm {
             }
             _ => return Err(RuntimeError(format!("unkown interrupt {}", int))),
         }
+
+        // hack for now
+        self.flags.k = false;
         Ok(())
     }
 }

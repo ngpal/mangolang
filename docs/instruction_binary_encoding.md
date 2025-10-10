@@ -81,6 +81,7 @@ Instruction Set (VM v0.1.1)
 
 ### **0x7\_ - Interrupts**
 
-| Opcode | Mnemonic | Operands | Notes                   |
-| ------ | -------- | -------- | ----------------------- |
-| 0x70   | INT      | imm8     | executes said interrupt |
+| Opcode | Mnemonic          | Operands | Notes                                |
+| ------ | ----------------- | -------- | ------------------------------------ |
+| 0x70   | INT               | imm8     | executes said interrupt              |
+| 0x71   | IRET (privilaged) | -        | same as ret but sets k flag to false |
