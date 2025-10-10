@@ -1,15 +1,16 @@
 use crate::{
+    disk::DiskDriver,
     error::{RuntimeError, RuntimeResult},
     instr::Instr,
     video::Video,
 };
 
-const MBIN_MAGIC: &[u8; 4] = b"MBIN";
+// const MBIN_MAGIC: &[u8; 4] = b"MBIN";
 const STACK_START: usize = 0xFF00;
 // const HEAP_START: usize = 0x4A10;
-const MMIO_START: usize = 0x4910;
-const USER_CODE_START: usize = 0x0910;
-const USER_CODE_SIZE: usize = MMIO_START - USER_CODE_START;
+// const MMIO_START: usize = 0x4910;
+// const USER_CODE_START: usize = 0x0910;
+// const USER_CODE_SIZE: usize = MMIO_START - USER_CODE_START;
 // const INT_HANDLER_START: usize = 0x0110;
 const IVT_START: usize = 0x0100;
 // const ROM_START: usize = 0x0000;
@@ -84,6 +85,8 @@ pub struct Vm {
     pub registers: Registers,
     pub ip: u16,
     pub program_end: usize,
+    pub disk: DiskDriver,
+    pub video: Video,
 }
 
 impl Vm {
@@ -94,35 +97,16 @@ impl Vm {
             registers: Registers::new(),
             ip: 0,
             program_end: 0,
+            disk: DiskDriver::new(),
+            video: Video::new(),
         }
     }
 
-    pub fn load(&mut self, program: Vec<u8>) -> RuntimeResult<()> {
-        if program.len() < 4 {
-            return Err(RuntimeError("Program too small".into()));
-        }
-
-        // check header
-        if &program[0..4] != MBIN_MAGIC {
-            return Err(RuntimeError(
-                "Invalid binary format (missing MBIN header)".into(),
-            ));
-        }
-
-        if program.len() - 4 > USER_CODE_SIZE {
-            return Err(RuntimeError(format!(
-                "Program exceeds size of {} bytes",
-                USER_CODE_SIZE
-            )));
-        }
-
-        // copy into memory, skipping header
-        for (addr, byte) in program[4..].iter().enumerate() {
+    pub fn load(&mut self) -> RuntimeResult<()> {
+        // load BIOS
+        for (addr, byte) in self.disk.get_sector(0x0000).iter().enumerate() {
             self.memory[addr] = *byte;
         }
-
-        // address after end of program
-        self.program_end = program.len() - 4;
 
         Ok(())
     }
@@ -212,7 +196,7 @@ impl Vm {
     }
 
     // Return halt signal
-    pub fn exec_instruction(&mut self, video: &mut Video) -> RuntimeResult<bool> {
+    pub fn exec_instruction(&mut self) -> RuntimeResult<bool> {
         let byte = self.fetch_byte();
         let instr = Instr::from_u8(byte)
             .ok_or(RuntimeError(format!("unknown instruction: 0x{:2X}", byte)))?;
@@ -317,7 +301,7 @@ impl Vm {
             }
             Instr::Int => {
                 let int = self.fetch_byte();
-                self.exec_interrupt(int, video)?;
+                self.exec_interrupt(int)?;
                 self.flags.k = true;
             }
             Instr::Iret => {
@@ -336,11 +320,6 @@ impl Vm {
         Ok(false)
     }
 
-    pub fn top_word(&self) -> u16 {
-        let sp = self.registers.get_sp() as usize;
-        u16::from_le_bytes([self.memory[sp], self.memory[sp + 1]])
-    }
-
     fn set_flags(&mut self, result: u16, overflow: bool) {
         self.flags.z = result == 0;
         self.flags.n = (result & 0x8000) != 0;
@@ -355,91 +334,91 @@ impl Vm {
         }
     }
 
-    pub fn disassemble(&self, start: usize, end: usize) -> Vec<String> {
-        let mut addr = start;
-        let mut output = Vec::new();
+    // pub fn disassemble(&self, start: usize, end: usize) -> Vec<String> {
+    //     let mut addr = start;
+    //     let mut output = Vec::new();
 
-        while addr < end && addr < self.program_end {
-            let byte = self.memory[addr];
-            let instr = Instr::from_u8(byte);
-            let line = match instr {
-                Some(Instr::Push16) => {
-                    if addr + 2 < self.memory.len() {
-                        let imm =
-                            u16::from_le_bytes([self.memory[addr + 1], self.memory[addr + 2]]);
-                        format!("0x{:04X}: PUSH16 {}", addr, imm)
-                    } else {
-                        format!("0x{:04X}: PUSH16 ???", addr)
-                    }
-                }
-                Some(Instr::Halt) => format!("0x{:04X}: HALT", addr),
-                Some(Instr::Add) => format!("0x{:04X}: ADD", addr),
-                Some(Instr::Cmp) => format!("0x{:04X}: CMP", addr),
-                Some(Instr::Not) => format!("0x{:04X}: NOT", addr),
-                Some(Instr::And) => format!("0x{:04X}: AND", addr),
-                Some(Instr::Or) => format!("0x{:04X}: OR", addr),
-                Some(Instr::Xor) => format!("0x{:04X}: XOR", addr),
-                Some(Instr::Shft) => format!("0x{:04X}: SHFT", addr),
-                Some(Instr::Ldw) => format!("0x{:04X}: LOADP", addr),
-                Some(Instr::Stw) => format!("0x{:04X}: STOREP", addr),
-                Some(Instr::Ldb) => format!("0x{:04X}: LOADPB", addr),
-                Some(Instr::Stb) => format!("0x{:04X}: STOREPB", addr),
-                Some(Instr::Jmp8) => {
-                    format!("0x{:04X}: JMP8 {}", addr, self.memory[addr + 1] as i8)
-                }
-                Some(Instr::Jlt8) => {
-                    format!("0x{:04X}: JLT8 {}", addr, self.memory[addr + 1] as i8)
-                }
-                Some(Instr::Jgt8) => {
-                    format!("0x{:04X}: JGT8 {}", addr, self.memory[addr + 1] as i8)
-                }
-                Some(Instr::Jeq8) => {
-                    format!("0x{:04X}: JEQ8 {}", addr, self.memory[addr + 1] as i8)
-                }
-                Some(Instr::Call) => {
-                    let target = u16::from_le_bytes([self.memory[addr + 1], self.memory[addr + 2]]);
-                    format!("0x{:04X}: CALL 0x{:04X}", addr, target)
-                }
-                Some(Instr::Ret) => format!("0x{:04X}: RET", addr),
-                Some(Instr::Mov) => {
-                    let byte = self.memory[addr + 1];
-                    let rd = byte >> 4;
-                    let rs = byte & 0xF;
-                    format!(
-                        "0x{:04X}: MOV {} {}",
-                        addr,
-                        Self::reg_name(rd),
-                        Self::reg_name(rs)
-                    )
-                }
-                Some(Instr::Pushr) => {
-                    format!("0x{:04X}: PUSHR r{}", addr, self.memory[addr + 1])
-                }
-                Some(Instr::Popr) => {
-                    format!("0x{:04X}: POPR r{}", addr, self.memory[addr + 1])
-                }
-                Some(Instr::Int) => {
-                    format!("0x{:04X}: INT {}", addr, self.memory[addr + 1])
-                }
-                Some(Instr::Iret) => {
-                    format!("0x{:04X}: IRET", addr)
-                }
-                None => format!("0x{:04X}: DB 0x{:02X}", addr, byte),
-            };
+    //     while addr < end && addr < self.program_end {
+    //         let byte = self.memory[addr];
+    //         let instr = Instr::from_u8(byte);
+    //         let line = match instr {
+    //             Some(Instr::Push16) => {
+    //                 if addr + 2 < self.memory.len() {
+    //                     let imm =
+    //                         u16::from_le_bytes([self.memory[addr + 1], self.memory[addr + 2]]);
+    //                     format!("0x{:04X}: PUSH16 {}", addr, imm)
+    //                 } else {
+    //                     format!("0x{:04X}: PUSH16 ???", addr)
+    //                 }
+    //             }
+    //             Some(Instr::Halt) => format!("0x{:04X}: HALT", addr),
+    //             Some(Instr::Add) => format!("0x{:04X}: ADD", addr),
+    //             Some(Instr::Cmp) => format!("0x{:04X}: CMP", addr),
+    //             Some(Instr::Not) => format!("0x{:04X}: NOT", addr),
+    //             Some(Instr::And) => format!("0x{:04X}: AND", addr),
+    //             Some(Instr::Or) => format!("0x{:04X}: OR", addr),
+    //             Some(Instr::Xor) => format!("0x{:04X}: XOR", addr),
+    //             Some(Instr::Shft) => format!("0x{:04X}: SHFT", addr),
+    //             Some(Instr::Ldw) => format!("0x{:04X}: LOADP", addr),
+    //             Some(Instr::Stw) => format!("0x{:04X}: STOREP", addr),
+    //             Some(Instr::Ldb) => format!("0x{:04X}: LOADPB", addr),
+    //             Some(Instr::Stb) => format!("0x{:04X}: STOREPB", addr),
+    //             Some(Instr::Jmp8) => {
+    //                 format!("0x{:04X}: JMP8 {}", addr, self.memory[addr + 1] as i8)
+    //             }
+    //             Some(Instr::Jlt8) => {
+    //                 format!("0x{:04X}: JLT8 {}", addr, self.memory[addr + 1] as i8)
+    //             }
+    //             Some(Instr::Jgt8) => {
+    //                 format!("0x{:04X}: JGT8 {}", addr, self.memory[addr + 1] as i8)
+    //             }
+    //             Some(Instr::Jeq8) => {
+    //                 format!("0x{:04X}: JEQ8 {}", addr, self.memory[addr + 1] as i8)
+    //             }
+    //             Some(Instr::Call) => {
+    //                 let target = u16::from_le_bytes([self.memory[addr + 1], self.memory[addr + 2]]);
+    //                 format!("0x{:04X}: CALL 0x{:04X}", addr, target)
+    //             }
+    //             Some(Instr::Ret) => format!("0x{:04X}: RET", addr),
+    //             Some(Instr::Mov) => {
+    //                 let byte = self.memory[addr + 1];
+    //                 let rd = byte >> 4;
+    //                 let rs = byte & 0xF;
+    //                 format!(
+    //                     "0x{:04X}: MOV {} {}",
+    //                     addr,
+    //                     Self::reg_name(rd),
+    //                     Self::reg_name(rs)
+    //                 )
+    //             }
+    //             Some(Instr::Pushr) => {
+    //                 format!("0x{:04X}: PUSHR r{}", addr, self.memory[addr + 1])
+    //             }
+    //             Some(Instr::Popr) => {
+    //                 format!("0x{:04X}: POPR r{}", addr, self.memory[addr + 1])
+    //             }
+    //             Some(Instr::Int) => {
+    //                 format!("0x{:04X}: INT {}", addr, self.memory[addr + 1])
+    //             }
+    //             Some(Instr::Iret) => {
+    //                 format!("0x{:04X}: IRET", addr)
+    //             }
+    //             None => format!("0x{:04X}: DB 0x{:02X}", addr, byte),
+    //         };
 
-            let size = instr.map(|x| x.byte_len()).unwrap_or(1);
-            output.push(line);
-            addr += size;
-        }
+    //         let size = instr.map(|x| x.byte_len()).unwrap_or(1);
+    //         output.push(line);
+    //         addr += size;
+    //     }
 
-        output
-    }
+    //     output
+    // }
 
-    fn exec_interrupt(&mut self, int: u8, video: &mut Video) -> RuntimeResult<()> {
+    fn exec_interrupt(&mut self, int: u8) -> RuntimeResult<()> {
         match int {
             // print to video
             0 => {
-                video.put_char(self.registers.get_reg(0)? as u8);
+                self.video.put_char(self.registers.get_reg(0)? as u8);
             }
             _ => return Err(RuntimeError(format!("unkown interrupt {}", int))),
         }

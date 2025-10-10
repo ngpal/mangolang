@@ -30,10 +30,6 @@ impl Video {
         self.set_cur(self.get_cur() + 1);
     }
 
-    pub fn dec_cur(&mut self) {
-        self.set_cur(self.get_cur() - 1);
-    }
-
     pub fn put_char(&mut self, ch: u8) {
         if ch == b'\n' {
             self.set_cur(self.get_cur() + VIDEO_WIDTH);

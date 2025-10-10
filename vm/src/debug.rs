@@ -17,12 +17,11 @@ use std::io::{self, stdout};
 use crate::{
     core::Vm,
     instr::Instr,
-    video::{VIDEO_HEIGHT, VIDEO_WIDTH, Video},
+    video::{VIDEO_HEIGHT, VIDEO_WIDTH},
 };
 
 pub struct Debugger<'a> {
     vm: &'a mut Vm,
-    video: Video,
     mem_offset: usize,
     speed: u64, // milliseconds per instruction
 }
@@ -31,7 +30,6 @@ impl<'a> Debugger<'a> {
     pub fn new(vm: &'a mut Vm) -> Self {
         Self {
             vm,
-            video: Video::new(),
             mem_offset: 0,
             speed: 100,
         }
@@ -101,7 +99,7 @@ impl<'a> Debugger<'a> {
                         KeyCode::Char('s') => {
                             // single step
                             if !halted && !running {
-                                match self.vm.exec_instruction(&mut self.video) {
+                                match self.vm.exec_instruction() {
                                     Ok(true) => {
                                         info_lines.push("program halted".into());
                                         halted = true;
@@ -145,7 +143,7 @@ impl<'a> Debugger<'a> {
             }
 
             if running && !halted {
-                match self.vm.exec_instruction(&mut self.video) {
+                match self.vm.exec_instruction() {
                     Ok(true) => {
                         info_lines.push("program halted".into());
                         halted = true;
@@ -173,7 +171,7 @@ impl<'a> Debugger<'a> {
                 for x in 0..VIDEO_WIDTH {
                     let idx = y * VIDEO_WIDTH + x;
                     let ch = if idx < (VIDEO_HEIGHT * VIDEO_WIDTH) {
-                        let byte = self.video.get_char(idx);
+                        let byte = self.vm.video.get_char(idx);
                         if byte.is_ascii_graphic() || byte == b' ' {
                             byte as char
                         } else {

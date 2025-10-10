@@ -348,7 +348,11 @@ main:
 # 10-10-2025
 
 - [ ] proper interrupts
-  - [ ] emulate a disk with 65,536 (2 bytes) sectors, each sector 256 bytes. total 16 MB of storage
+  - [x] emulate a disk with 65,536 (2 bytes) sectors, each sector 256 bytes. total 16 MB of storage
+    - [x] decide a file format for the disk for efficient data storage, we dont want to bloat up the RAM on the host device when loading the disk
+      - there will be a folder called `disk`
+        - there will be a `table.bin` file that keeps track of which sectors and occupied and which are empty
+        - empty sectors have no corresponding files, occupied sectors have a corresponding file called `sector_XXXX.bin`, `XXXX` being the sector address in hex.
   - [ ] first sector contains BIOS, its loaded by the host from the ROM
   - [ ] the BIOS then gets executed, which saves the IVT, and loads the Interrupt handlers into memory
     - [x] kernel mode and user mode
@@ -358,7 +362,7 @@ main:
       - [x] kernel mode can modify anywhere, except rom, nothing can write to rom
     - [ ] lets define 64 interrupts for now
       - [ ] 0 - print char
-      - [ ] 1 - read disk
+      - [ ] 1 - send command to disk
       - [ ] rest can `IRET` straight back
     - [ ] MMIO definitions for disk and terminal
     - [ ] enterrupt handlers can live in sectors 1-8 and will be loaded in by the BIOS

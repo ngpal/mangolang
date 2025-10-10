@@ -29,4 +29,4 @@ echo "linking $OUT_DIR/$BASENAME.mobj + stdlib/math.mobj -> $OUT_DIR/$BASENAME.m
 cargo run --package linker -q --  "$OUT_DIR/$BASENAME.mobj" stdlib/math.mobj -o "$OUT_DIR/$BASENAME.mbin" || exit 1
 
 echo "running $OUT_DIR/$BASENAME.mbin"
-cargo run --package vm -q -- "$OUT_DIR/$BASENAME.mbin" -d
+cargo run --package vm -q -- run
