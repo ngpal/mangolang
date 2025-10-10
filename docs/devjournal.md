@@ -336,7 +336,7 @@ main:
   - [x] Tear out video memory from the VM
   - [x] Implement it as a seperate array in the debug screen
   - This is relevant because it DRASTICALLY reduces the code size for debugging purposes
-  - Kinda Magic-y atm
+  - Kinda magic-y atm
 
 # 09-10-2025
 
@@ -346,16 +346,15 @@ main:
   - [x] rearrange ordering
 
 - [ ] Proper interrupts for printing and controlling the cursor
-  - [ ] hook up to a terminal?
-- [ ] bigger screen?
-- [ ] immediate values in the instructions
+  - [ ] reserve a tiny space in memory for communicating with the terminal.
+- [ ] immediate values in the instructions?
 
 - [ ] allow multiple files
-  - [ ] enforce main function on a assembler level not compiler level
+  - [ ] some level of label obfuscation for handling namespace collisions on the assembler level
+  - [ ] enforce main function on the assembler level not codegen level
   - [ ] allow only function headers to pass through for functions implemented in assembly
     - [ ] new syntax for letting a function pass through the undefined functions check
   - [ ] new syntax for imports
-
 - [ ] stack balancing
   - [ ] assigning to `_` discards the value
   - [ ] statements that have `eval_type != Unit` can be considered the same as `var _ = stmt;`
@@ -367,11 +366,12 @@ main:
   - [ ] simple bump allocator
 - [ ] vectors!
 - [ ] floats?
-
 - [ ] implement an IR for base level optimizations
   - [ ] implement IR
   - [ ] constant folding
   - [ ] dead code analysis
+  - [ ] additions by 0
+  - [ ] mult by 1
 - [ ] constants
 - [ ] functions as parameters
 - [ ] register based arithmetic instructions

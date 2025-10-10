@@ -82,6 +82,12 @@ __imul_end:
 ; r4 = sign tracker (0 = positive, 1 = negative)
 
 __idivmod:
+	; clear r0, r1, and r4
+	PUSH16 0
+	POPR  r0
+	MOV   r1, r0
+	MOV   r4, r1
+
     ; handle division by zero (optional: return 0/0)
     PUSHR r3
     PUSH16 0
