@@ -270,7 +270,7 @@ Stack grows down (top of stack is higher memory)
   - [x] analyzer
   - [x] codegen
 
-- [ ] store strings in data section of binary
+- [x] store strings in data section of binary
   - [x] introduce sections into the assembly format
     - [x] `@section data` and `@section text` in the assembly
     - [x] data section needs to only handle strings for now.
@@ -345,8 +345,22 @@ main:
 - [x] new bug because of ordering of value and addr in `STW` cant match with `STR`
   - [x] rearrange ordering
 
-- [ ] Proper interrupts for printing and controlling the cursor
-  - [ ] reserve a tiny space in memory for communicating with the terminal.
+# 10-10-2025
+
+- [ ] proper interrupts
+  - [ ] emulate a disk with 65,536 (2 bytes) sectors, each sector 256 bytes. total 16 MB of storage
+  - [ ] first sector contains BIOS, its loaded by the host from the ROM
+  - [ ] the BIOS then gets executed, which saves the IVT, and loads the Interrupt handlers into memory
+    - [ ] MMIO definitions for disk and terminal
+    - [ ] kernel mode and user mode
+      - [ ] switch to kernel mode when calling `INT`
+      - [ ] `IRET` switches back to user mode
+      - [ ] user mode only allows writing to stack (and allocated parts of heap but we dont have a heap right now)
+      - [ ] kernel mode can modify anywhere, except rom, nothing can write to rom
+    - [ ] lets define 8 interrupts for now
+      - [ ] 0 - print char
+      - [ ] 1 - read disk
+    - [ ] enterrupt handlers can live in the consequtive sectors and will be loaded in by the BIOS
 - [ ] immediate values in the instructions?
 
 - [ ] allow multiple files
