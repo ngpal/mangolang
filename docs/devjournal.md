@@ -353,6 +353,7 @@ main:
       - there will be a folder called `disk`
         - there will be a `table.bin` file that keeps track of which sectors and occupied and which are empty
         - empty sectors have no corresponding files, occupied sectors have a corresponding file called `sector_XXXX.bin`, `XXXX` being the sector address in hex.
+  - [x] update linker with option to modify base offset
   - [ ] first sector contains BIOS, its loaded by the host from the ROM
   - [ ] the BIOS then gets executed, which saves the IVT, and loads the Interrupt handlers into memory
     - [x] kernel mode and user mode

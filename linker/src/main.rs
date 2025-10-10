@@ -17,13 +17,13 @@ fn read_u16(object: &[u8], idx: usize) -> u16 {
     object[idx] as u16 | ((object[idx + 1] as u16) << 8)
 }
 
-pub fn link_objects(objects: Vec<Vec<u8>>) -> LinkerResult<Vec<u8>> {
+pub fn link_objects(objects: Vec<Vec<u8>>, base: u16) -> LinkerResult<Vec<u8>> {
     let mut instr_blob = Vec::new(); // instructions only
     let mut data_blob = Vec::new();
     let mut symbols: HashMap<String, u16> = HashMap::new();
     let mut relocs: Vec<(usize, String, u8)> = Vec::new();
 
-    let mut instr_base = 0usize;
+    let mut instr_base = base as usize;
     let mut data_base = 0usize;
 
     for object in objects {
@@ -144,13 +144,17 @@ pub fn link_objects(objects: Vec<Vec<u8>>) -> LinkerResult<Vec<u8>> {
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 struct Cli {
-    /// input object files
+    // input object files
     #[arg(value_name = "FILES")]
     input: Vec<String>,
 
-    /// output binary filename
+    // output binary filename
     #[arg(short, long)]
     output: Option<String>,
+
+    // base address modification
+    #[arg(short, long)]
+    base: Option<u16>,
 }
 
 fn main() -> io::Result<()> {
@@ -167,7 +171,14 @@ fn main() -> io::Result<()> {
         objects.push(buf);
     }
 
-    let binary = link_objects(objects).unwrap_or_else(|e| {
+    let base = if let Some(ofst) = cli.base {
+        ofst
+    } else {
+        // user code base
+        0x0910
+    };
+
+    let binary = link_objects(objects, base).unwrap_or_else(|e| {
         eprintln!("Link error: {:?}", e);
         std::process::exit(1);
     });
