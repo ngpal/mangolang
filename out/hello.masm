@@ -1,5 +1,5 @@
 @section data
-__str_0 = "hi!"
+__str_0 = "hello, world!"
 @section text
 CALL main
 HALT

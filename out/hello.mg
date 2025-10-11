@@ -11,5 +11,5 @@ fn print_string(s: [char]) {
 }
 
 fn main() {
-	print_string("hi!");
+	print_string("hello, world!");
 }

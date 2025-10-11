@@ -125,7 +125,7 @@ pub fn link_objects(objects: Vec<Vec<u8>>, base: u16) -> LinkerResult<Vec<u8>> {
             instr_blob[*instr_ofst] = offset as u8;
         } else if *kind == 2 {
             // Data16
-            let bytes = (addr + instr_base as u16).to_le_bytes();
+            let bytes = (addr + instr_base as u16 + base).to_le_bytes();
             instr_blob[*instr_ofst] = bytes[0];
             instr_blob[*instr_ofst + 1] = bytes[1];
         } else {
