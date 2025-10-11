@@ -374,6 +374,7 @@ main:
 - [x] split shift instructions to `SHL` and `SHR`
 - [x] immediate instructions for arithmetics and moves
 - [x] imul and idiv subroutines are horribly inefficient. fix that
+- [ ] normal running mode to run at full speed
 - [ ] optimize loading user code
 
 ## Memory Layout

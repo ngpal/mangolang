@@ -1,69 +1,29 @@
 @section data
-__str_0 = "hello, world!"
+str = "hellobellohahahahehehee"
+
 @section text
-CALL main
-HALT
+; r1 contains index
+	PUSH16 0
+	POPR   r1
 
-print_string:
-PUSHR fp
-MOV fp, sp
-PUSH16 65534
-PUSHR fp
-ADD
-POPR sp
-PUSH16 0
-STR [fp, 0]
+loop:
+	; load char
+	DATA   str
+	PUSHR  r1
+	ADD
 
-L0:
-LDR [fp, 6]
-LDR [fp, 0]
-PUSH16 1
-MUL
-ADD
-LDB
-PUSH16 0
-CMP
-JEQ L2
-JMP L4
+	LDB
+	POPR   r0
 
-L2:
-JMP L1
+	PUSHR  r0
+	CMPI   0
+	JEQ    end
 
-L4:
-LDR [fp, 6]
-LDR [fp, 0]
-PUSH16 1
-MUL
-ADD
-LDB
-POPR r0
-INT 0
-LDR [fp, 0]
-PUSH16 1
-ADD
-STR [fp, 0]
-JMP L0
+	INT    0
+	PUSHR  r1
+	ADDI   1
+	POPR   r1
 
-L1:
-MOV sp, fp
-POPR fp
-RET
-
-main:
-PUSHR fp
-MOV fp, sp
-PUSH16 0
-PUSHR fp
-ADD
-POPR sp
-DATA __str_0
-CALL print_string
-PUSHR sp
-PUSH16 2
-PUSH16 1
-MUL
-ADD
-POPR sp
-MOV sp, fp
-POPR fp
-RET
+	JMP    loop
+end:
+	HALT

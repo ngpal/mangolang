@@ -1,8 +1,20 @@
+use std::{
+    io::{Write, stdout},
+    time::Duration,
+};
+
+use crossterm::{
+    cursor::{self, MoveTo},
+    event::{self, Event, KeyCode},
+    execute,
+    terminal::{self, Clear, ClearType, size},
+};
+
 use crate::{
     disk::DiskDriver,
     error::{RuntimeError, RuntimeResult},
     instr::Instr,
-    video::Video,
+    video::{VIDEO_HEIGHT, VIDEO_WIDTH, Video},
 };
 
 // const MBIN_MAGIC: &[u8; 4] = b"MBIN";
@@ -363,87 +375,6 @@ impl Vm {
 
         Ok(())
     }
-
-    // pub fn disassemble(&self, start: usize, end: usize) -> Vec<String> {
-    //     let mut addr = start;
-    //     let mut output = Vec::new();
-
-    //     while addr < end && addr < self.program_end {
-    //         let byte = self.memory[addr];
-    //         let instr = Instr::from_u8(byte);
-    //         let line = match instr {
-    //             Some(Instr::Push16) => {
-    //                 if addr + 2 < self.memory.len() {
-    //                     let imm =
-    //                         u16::from_le_bytes([self.memory[addr + 1], self.memory[addr + 2]]);
-    //                     format!("0x{:04X}: PUSH16 {}", addr, imm)
-    //                 } else {
-    //                     format!("0x{:04X}: PUSH16 ???", addr)
-    //                 }
-    //             }
-    //             Some(Instr::Halt) => format!("0x{:04X}: HALT", addr),
-    //             Some(Instr::Add) => format!("0x{:04X}: ADD", addr),
-    //             Some(Instr::Cmp) => format!("0x{:04X}: CMP", addr),
-    //             Some(Instr::Not) => format!("0x{:04X}: NOT", addr),
-    //             Some(Instr::And) => format!("0x{:04X}: AND", addr),
-    //             Some(Instr::Or) => format!("0x{:04X}: OR", addr),
-    //             Some(Instr::Xor) => format!("0x{:04X}: XOR", addr),
-    //             Some(Instr::Shft) => format!("0x{:04X}: SHFT", addr),
-    //             Some(Instr::Ldw) => format!("0x{:04X}: LOADP", addr),
-    //             Some(Instr::Stw) => format!("0x{:04X}: STOREP", addr),
-    //             Some(Instr::Ldb) => format!("0x{:04X}: LOADPB", addr),
-    //             Some(Instr::Stb) => format!("0x{:04X}: STOREPB", addr),
-    //             Some(Instr::Jmp8) => {
-    //                 format!("0x{:04X}: JMP8 {}", addr, self.memory[addr + 1] as i8)
-    //             }
-    //             Some(Instr::Jlt8) => {
-    //                 format!("0x{:04X}: JLT8 {}", addr, self.memory[addr + 1] as i8)
-    //             }
-    //             Some(Instr::Jgt8) => {
-    //                 format!("0x{:04X}: JGT8 {}", addr, self.memory[addr + 1] as i8)
-    //             }
-    //             Some(Instr::Jeq8) => {
-    //                 format!("0x{:04X}: JEQ8 {}", addr, self.memory[addr + 1] as i8)
-    //             }
-    //             Some(Instr::Call) => {
-    //                 let target = u16::from_le_bytes([self.memory[addr + 1], self.memory[addr + 2]]);
-    //                 format!("0x{:04X}: CALL 0x{:04X}", addr, target)
-    //             }
-    //             Some(Instr::Ret) => format!("0x{:04X}: RET", addr),
-    //             Some(Instr::Mov) => {
-    //                 let byte = self.memory[addr + 1];
-    //                 let rd = byte >> 4;
-    //                 let rs = byte & 0xF;
-    //                 format!(
-    //                     "0x{:04X}: MOV {} {}",
-    //                     addr,
-    //                     Self::reg_name(rd),
-    //                     Self::reg_name(rs)
-    //                 )
-    //             }
-    //             Some(Instr::Pushr) => {
-    //                 format!("0x{:04X}: PUSHR r{}", addr, self.memory[addr + 1])
-    //             }
-    //             Some(Instr::Popr) => {
-    //                 format!("0x{:04X}: POPR r{}", addr, self.memory[addr + 1])
-    //             }
-    //             Some(Instr::Int) => {
-    //                 format!("0x{:04X}: INT {}", addr, self.memory[addr + 1])
-    //             }
-    //             Some(Instr::Iret) => {
-    //                 format!("0x{:04X}: IRET", addr)
-    //             }
-    //             None => format!("0x{:04X}: DB 0x{:02X}", addr, byte),
-    //         };
-
-    //         let size = instr.map(|x| x.byte_len()).unwrap_or(1);
-    //         output.push(line);
-    //         addr += size;
-    //     }
-
-    //     output
-    // }
-
     fn exec_interrupt(&mut self, int: u8) -> RuntimeResult<()> {
         match int {
             // print to video
@@ -457,6 +388,100 @@ impl Vm {
 
         // hack for now
         self.flags.k = false;
+        Ok(())
+    }
+
+    pub fn run(&mut self) -> RuntimeResult<()> {
+        fn wrap_err<E: std::fmt::Display>(err: E) -> RuntimeError {
+            RuntimeError(err.to_string())
+        }
+
+        let mut running = true;
+        let mut stdout = stdout();
+        terminal::enable_raw_mode().map_err(wrap_err)?;
+        execute!(stdout, terminal::EnterAlternateScreen, cursor::Hide).map_err(wrap_err)?;
+
+        loop {
+            // check for quit key
+            if event::poll(Duration::from_millis(0)).map_err(wrap_err)? {
+                if let Event::Key(key) = event::read().map_err(wrap_err)? {
+                    if let KeyCode::Char('q') = key.code {
+                        break;
+                    }
+                }
+            }
+
+            // execute VM instructions until next frame
+            if running && self.exec_instruction()? {
+                running = false;
+            }
+
+            self.draw_video().map_err(wrap_err)?;
+        }
+
+        // cleanup
+        execute!(stdout, cursor::Show, terminal::LeaveAlternateScreen).map_err(wrap_err)?;
+        terminal::disable_raw_mode().map_err(wrap_err)?;
+        Ok(())
+    }
+
+    pub fn draw_video(&self) -> std::io::Result<()> {
+        let mut out = stdout();
+
+        // get terminal size
+        let (term_width, term_height) = size()?;
+
+        // compute offsets to center frame
+        let frame_width = VIDEO_WIDTH + 2; // +2 for left/right borders
+        let frame_height = VIDEO_HEIGHT + 2 + 1; // +2 for top/bottom borders, +1 for title
+
+        let x_offset = if term_width as usize > frame_width {
+            (term_width as usize - frame_width) / 2
+        } else {
+            0
+        };
+
+        let y_offset = if term_height as usize > frame_height {
+            (term_height as usize - frame_height) / 2
+        } else {
+            0
+        };
+
+        // clear screen
+        execute!(out, Clear(ClearType::All))?;
+
+        // print title
+        let title = " VM VIDEO OUTPUT ";
+        let title_start = x_offset + (frame_width.saturating_sub(title.len())) / 2;
+        execute!(out, MoveTo(title_start as u16, y_offset as u16))?;
+        writeln!(out, "{}", title)?;
+
+        // top border
+        let top = format!("┌{}┐", "─".repeat(VIDEO_WIDTH));
+        execute!(out, MoveTo(x_offset as u16, (y_offset + 1) as u16))?;
+        writeln!(out, "{}", top)?;
+
+        // video rows
+        for row in 0..VIDEO_HEIGHT {
+            execute!(out, MoveTo(x_offset as u16, (y_offset + 2 + row) as u16))?;
+            write!(out, "│")?;
+            for col in 0..VIDEO_WIDTH {
+                let ch = self.video.get_char(row * VIDEO_WIDTH + col);
+                let ch = if ch == 0 { ' ' } else { ch as char };
+                write!(out, "{}", ch)?;
+            }
+            writeln!(out, "│")?;
+        }
+
+        // bottom border
+        let bottom = format!("└{}┘", "─".repeat(VIDEO_WIDTH));
+        execute!(
+            out,
+            MoveTo(x_offset as u16, (y_offset + 2 + VIDEO_HEIGHT) as u16)
+        )?;
+        writeln!(out, "{}", bottom)?;
+
+        out.flush()?;
         Ok(())
     }
 }

@@ -12,7 +12,10 @@ use std::{fs, process};
 #[derive(Subcommand, Debug)]
 enum Command {
     // Run a program on the VM (default)
-    Run,
+    Run {
+        #[arg(short = 'd', long)]
+        debug: bool,
+    },
 
     // Write data to a disk sector
     Dw {
@@ -44,18 +47,23 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Run => {
+        Command::Run { debug } => {
             let mut vm = Vm::new();
             vm.load().unwrap_or_else(|err| {
                 eprintln!("failed to load program: {}", err);
                 process::exit(1);
             });
 
-            println!("entering debugger");
-            if let Err(err) = Debugger::new(&mut vm).run() {
-                eprintln!("{}", err);
+            if debug {
+                println!("entering debugger");
+                if let Err(err) = Debugger::new(&mut vm).run() {
+                    eprintln!("{}", err);
+                }
+            } else {
+                if let Err(err) = vm.run() {
+                    eprintln!("{}", err);
+                }
             }
-            return;
         }
 
         Command::Dw {
