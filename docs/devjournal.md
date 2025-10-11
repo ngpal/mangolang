@@ -372,7 +372,9 @@ main:
   - [x] enterrupt handlers can live in sectors 1-8 and will be loaded in by the BIOS
   - [x] user code can live in sector 9-72 (16KB) (64 sectors)
 - [x] split shift instructions to `SHL` and `SHR`
-- [ ] imul and idiv subroutines are horribly inefficient. fix that
+- [x] immediate instructions for arithmetics and moves
+- [x] imul and idiv subroutines are horribly inefficient. fix that
+- [ ] optimize loading user code
 
 ## Memory Layout
 
@@ -397,7 +399,6 @@ main:
 | DISK_CMD    | 0x4924 | 1B   | 0 = idle , 1 = read, 2 = write (unsupported) |
 | DISK_STATUS | 0x4925 | 1B   | 0 = ready, 1 = busy, 2 = error               |
 
-- [ ] immediate values in the instructions?
 - [ ] allow multiple files
   - [ ] some level of label obfuscation for handling namespace collisions on the assembler level
   - [ ] enforce main function on the assembler level not codegen level

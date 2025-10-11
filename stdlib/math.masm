@@ -12,8 +12,7 @@ __imul:
 
 	; set up sign
 	PUSHR r1
-	PUSH16 0
-	CMP
+	CMPI  0
 
 	JGT __imul_a_pos
 
@@ -28,14 +27,12 @@ __imul:
 
 __imul_a_pos:
 	PUSHR r2
-	PUSH16 0
-	CMP
+	CMPI  0
 
 	JGT __imul_loop
 	
-	PUSH16 1
 	PUSHR r3
-	XOR
+	XORI  1
 	POPR  r3
 	PUSHR r2
 	NEG
@@ -43,28 +40,37 @@ __imul_a_pos:
 
 __imul_loop:
 	PUSHR r2
-	PUSH16 0
-	CMP
+	CMPI  0
 
 	JEQ __imul_sign_check
 
-	; if b is not zero
+	; check LSB of b
+	PUSHR r2
+	ANDI  1
+	CMPI  0
+
+	JEQ __imul_shifts
+
+	; add a to result
 	PUSHR r0
 	PUSHR r1
 	ADD
 	POPR  r0
 
+__imul_shifts:
+	PUSHR r1
+	SHLI  1
+	POPR  r1
+
 	PUSHR r2
-	PUSH16 1
-	SUB
+	SHRI  1
 	POPR  r2
 
 	JMP   __imul_loop
 
 __imul_sign_check:
 	PUSHR r3
-	PUSH16 0
-	CMP
+	CMPI  0
 
 	JEQ __imul_end
 	PUSHR r0
@@ -74,96 +80,165 @@ __imul_sign_check:
 __imul_end:
 	RET
 
-; __idivmod: signed 16-bit division and modulo
+; __idivmod: signed 16-bit division and modulo (stack-only arithmetic)
 ; r2 = dividend (a)
 ; r3 = divisor  (b)
 ; r0 = quotient (a / b)
 ; r1 = remainder (a % b)
-; r4 = sign tracker (0 = positive, 1 = negative)
+; r4 = quotient-sign-tracker (0 = positive, 1 = negative)  ; XOR of signs
+; r5 = shift counter
+; r6 = temporary
+; r7 = original-dividend-sign (0 = positive or zero, 1 = negative) <-- NEW
 
 __idivmod:
-	; clear r0, r1, and r4
-	PUSH16 0
-	POPR  r0
-	MOV   r1, r0
-	MOV   r4, r1
+    ; clear quotient, remainder, and sign trackers
+    PUSH16 0
+    POPR   r0
+    MOV    r1, r0
+    MOV    r4, r0
+    MOV    r7, r0         ; clear dividend-sign flag
 
-    ; handle division by zero (optional: return 0/0)
-    PUSHR r3
-    PUSH16 0
-    CMP
-    JEQ __idivmod_zero
+    ; handle division by zero (divisor == 0)
+    PUSHR  r3
+    CMPI   0
+    JEQ    __idivmod_zero
 
-    ; initialize quotient and sign tracker
-    PUSH16 0
-    POPR r0      ; r0 = 0
-    PUSH16 0
-    POPR r4      ; r4 = 0 (sign tracker)
+    ; handle dividend == 0 (quick return: 0 / b == 0, rem 0)
+    PUSHR  r2
+    CMPI   0
+    JEQ    __idivmod_dividend_zero
 
     ; handle dividend sign
-    PUSHR r2
-    PUSH16 0
-    CMP
-    JGT __div_a_pos
-    PUSHR r2
+    PUSHR  r2
+    CMPI   0
+    JGT    __div_a_pos
+    ; a < 0:
+    PUSHR  r2
     NEG
-    POPR r2
-    PUSHR r4
+    POPR   r2
     PUSH16 1
-    XOR
-    POPR r4
+    POPR   r7            ; remember original dividend was negative
+    PUSHR  r4
+    XORI   1
+    POPR   r4            ; flip quotient sign tracker
+
 __div_a_pos:
 
     ; handle divisor sign
     PUSHR r3
-    PUSH16 0
-    CMP
+    CMPI  0
     JGT __div_b_pos
     PUSHR r3
     NEG
-    POPR r3
+    POPR  r3
     PUSHR r4
-    PUSH16 1
-    XOR
+    XORI  1
     POPR r4
+
 __div_b_pos:
 
-    ; repeated subtraction loop
-__div_loop:
-    PUSHR r2
-    PUSHR r3
-    CMP
-    JLT __div_done    
+    ; initialize shift counter
+    PUSH16 0
+    POPR  r5
 
-    ; subtract divisor from dividend
-    PUSHR r2
+__div_shift_loop:
+    ; temp = r3 << 1
     PUSHR r3
+    SHLI  1
+    POPR  r6
+
+    ; if temp > dividend then we've found the highest shift
+    PUSHR r6
+    PUSHR r2
+    CMP
+    JGT __div_shift_done
+
+    ; else increment shift counter and r3 := temp (shift left further)
+    PUSHR r5
+    ADDI  1
+    POPR  r5
+    MOV   r3, r6
+    JMP   __div_shift_loop
+
+__div_shift_done:
+    ; r3 currently holds divisor << shift_count, restore original divisor:
+    PUSHR r3
+    PUSHR r5
+    SHR
+    POPR r3
+
+    ; now r5 == shift_count. loop DOWN from r5 down to 0 (inclusive)
+__div_main_loop:
+    ; compute temp = divisor << shift_counter
+    PUSHR r3
+    PUSHR r5
+    SHL
+    POPR r6
+
+    ; if dividend < temp -> skip subtraction
+    PUSHR r2
+    PUSHR r6
+    CMP
+    JLT __div_next_shift
+
+    ; dividend -= temp
+    PUSHR r2
+    PUSHR r6
     SUB
     POPR r2
 
-    ; increment quotient
-    PUSHR r0
+    ; quotient += (1 << shift_counter)
     PUSH16 1
+    PUSHR r5
+    SHL
+    POPR r6
+    PUSHR r0
+    PUSHR r6
     ADD
     POPR r0
 
-    JMP __div_loop
+__div_next_shift:
+    ; decrement shift counter
+    PUSHR r5
+    PUSH16 1
+    SUB
+    POPR r5
+
+    ; if r5 < 0, we're done; otherwise continue (this lets us process r5 == 0)
+    PUSHR r5
+    CMPI 0
+    JLT __div_done
+    JMP __div_main_loop
 
 __div_done:
-    ; remainder = dividend
-    PUSHR r2
-    POPR r1
+    ; remainder = dividend (what's left in r2)
+	MOV r1, r2
 
-    ; apply quotient sign
+    ; apply quotient sign (r4 = sign a XOR sign b)
     PUSHR r4
-    PUSH16 0
-    CMP
-    JEQ __div_end
+    CMPI 0
+    JEQ __div_check_rem_sign
     PUSHR r0
     NEG
     POPR r0
 
+__div_check_rem_sign:
+    ; apply remainder sign: remainder should have sign of original dividend
+    PUSHR r7
+    CMPI 0
+    JEQ __div_end
+    PUSHR r1
+    NEG
+    POPR r1
+
 __div_end:
+    RET
+
+__idivmod_dividend_zero:
+    PUSH16 0
+    POPR r0
+    PUSH16 0
+    POPR r1
     RET
 
 __idivmod_zero:

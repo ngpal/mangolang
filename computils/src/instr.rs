@@ -33,6 +33,22 @@ pub enum Instr {
     Shl,
     Shr,
 
+    CmpI(u16),
+    AddI(u16),
+    SubI(u16),
+    MulI(u16),
+    DivI(u16),
+    NegI(u16),
+    ModI(u16),
+
+    NotI(u16),
+
+    AndI(u16),
+    OrI(u16),
+    XorI(u16),
+    ShlI(u16),
+    ShrI(u16),
+
     Mov(u8, u8),
     Pushr(u8),
     Popr(u8),
@@ -82,7 +98,20 @@ impl Instr {
             Instr::Stb => 1,
             Instr::Iret => 1,
             Instr::Bkpt => 1,
-            Instr::Ldr(_, _)
+            Instr::CmpI(_)
+            | Instr::AddI(_)
+            | Instr::SubI(_)
+            | Instr::MulI(_)
+            | Instr::DivI(_)
+            | Instr::NegI(_)
+            | Instr::ModI(_)
+            | Instr::NotI(_)
+            | Instr::AndI(_)
+            | Instr::OrI(_)
+            | Instr::XorI(_)
+            | Instr::ShlI(_)
+            | Instr::ShrI(_)
+            | Instr::Ldr(_, _)
             | Instr::Str(_, _)
             | Instr::Sub
             | Instr::Mul

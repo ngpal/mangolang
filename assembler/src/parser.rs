@@ -327,6 +327,14 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Assembly> {
             "cmp" => Instr::Cmp,
             "mod" => Instr::Mod,
 
+            "addi" => Instr::AddI(parse_imm16(Some(rest), lineno)?),
+            "subi" => Instr::SubI(parse_imm16(Some(rest), lineno)?),
+            "muli" => Instr::MulI(parse_imm16(Some(rest), lineno)?),
+            "divi" => Instr::DivI(parse_imm16(Some(rest), lineno)?),
+            "negi" => Instr::NegI(parse_imm16(Some(rest), lineno)?),
+            "cmpi" => Instr::CmpI(parse_imm16(Some(rest), lineno)?),
+            "modi" => Instr::ModI(parse_imm16(Some(rest), lineno)?),
+
             // bitwise
             "not" => Instr::Not,
             "and" => Instr::And,
@@ -334,6 +342,13 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Assembly> {
             "xor" => Instr::Xor,
             "shl" => Instr::Shl,
             "shr" => Instr::Shr,
+
+            "noti" => Instr::NotI(parse_imm16(Some(rest), lineno)?),
+            "andi" => Instr::AndI(parse_imm16(Some(rest), lineno)?),
+            "ori" => Instr::OrI(parse_imm16(Some(rest), lineno)?),
+            "xori" => Instr::XorI(parse_imm16(Some(rest), lineno)?),
+            "shli" => Instr::ShlI(parse_imm16(Some(rest), lineno)?),
+            "shri" => Instr::ShrI(parse_imm16(Some(rest), lineno)?),
 
             // register ops
             "mov" => {

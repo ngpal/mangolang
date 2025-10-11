@@ -54,6 +54,8 @@ Instruction Set (VM v0.1.1)
 | 0x35   | CMP               | -        | compare two ints (sub with flags)             |
 | 0x36   | MOD (convenience) | -        | integer modulus                               |
 
+- Convenience instructions for all these accepting 1 immediate
+
 ### **0x4\_ - Bitwise Ops**
 
 | Opcode | Mnemonic | Operands | Notes               |
@@ -64,6 +66,8 @@ Instruction Set (VM v0.1.1)
 | 0x43   | XOR      | -        | bitwise xor         |
 | 0x44   | SHL      | -        | bitwise shift left  |
 | 0x45   | SHR      | -        | bitwise shift right |
+
+- Convenience instructions for all these accepting 1 immediate
 
 ### **0x5\_ - Register Ops**
 

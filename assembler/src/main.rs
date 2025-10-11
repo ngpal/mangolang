@@ -122,7 +122,6 @@ pub fn resolve_conv_instrs(instrs: Vec<Instr>) -> Vec<Instr> {
                 Instr::Add,
                 Instr::Ldw,
             ],
-            // a little complex because value is on top of the stack
             Instr::Str(rd, imm) => vec![
                 Instr::Pushr(rd),
                 Instr::Push(imm as i16 as u16),
@@ -149,6 +148,46 @@ pub fn resolve_conv_instrs(instrs: Vec<Instr>) -> Vec<Instr> {
                 Instr::Pushr(1),
             ],
             Instr::Neg => vec![Instr::Not, Instr::Push(1), Instr::Add],
+
+            // immediate versions (no convenience instructions)
+            Instr::AddI(imm) => vec![Instr::Push(imm), Instr::Add],
+            Instr::SubI(imm) => vec![
+                Instr::Push(imm),
+                Instr::Not,
+                Instr::Push(1),
+                Instr::Add,
+                Instr::Add,
+            ],
+            Instr::MulI(imm) => vec![
+                Instr::Push(imm),
+                Instr::Popr(2),
+                Instr::Popr(1),
+                Instr::CallLbl("__imul".to_string()),
+                Instr::Pushr(0),
+            ],
+            Instr::DivI(imm) => vec![
+                Instr::Push(imm),
+                Instr::Popr(3),
+                Instr::Popr(2),
+                Instr::CallLbl("__idivmod".to_string()),
+                Instr::Pushr(0),
+            ],
+            Instr::ModI(imm) => vec![
+                Instr::Push(imm),
+                Instr::Popr(3),
+                Instr::Popr(2),
+                Instr::CallLbl("__idivmod".to_string()),
+                Instr::Pushr(1),
+            ],
+            Instr::NegI(imm) => vec![Instr::Push(imm), Instr::Not, Instr::Push(1), Instr::Add],
+            Instr::CmpI(imm) => vec![Instr::Push(imm), Instr::Cmp],
+            Instr::NotI(imm) => vec![Instr::Push(imm), Instr::Not],
+            Instr::AndI(imm) => vec![Instr::Push(imm), Instr::And],
+            Instr::OrI(imm) => vec![Instr::Push(imm), Instr::Or],
+            Instr::XorI(imm) => vec![Instr::Push(imm), Instr::Xor],
+            Instr::ShlI(imm) => vec![Instr::Push(imm), Instr::Shl],
+            Instr::ShrI(imm) => vec![Instr::Push(imm), Instr::Shr],
+
             _ => vec![instr],
         })
     }
@@ -174,7 +213,6 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             Instr::Ret => vec![0x25],
             Instr::Add => vec![0x30],
             Instr::Cmp => vec![0x35],
-            Instr::Mod => vec![0x36],
             Instr::Not => vec![0x40],
             Instr::And => vec![0x41],
             Instr::Or => vec![0x42],
@@ -193,12 +231,26 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             | Instr::Data(_) => {
                 unreachable!("gen_bin called on unresolved symbolic instruction")
             }
-            Instr::Sub
+            Instr::CmpI(_)
+            | Instr::AddI(_)
+            | Instr::SubI(_)
+            | Instr::MulI(_)
+            | Instr::DivI(_)
+            | Instr::NegI(_)
+            | Instr::ModI(_)
+            | Instr::NotI(_)
+            | Instr::AndI(_)
+            | Instr::OrI(_)
+            | Instr::XorI(_)
+            | Instr::ShlI(_)
+            | Instr::ShrI(_)
+            | Instr::Ldr(_, _)
+            | Instr::Str(_, _)
+            | Instr::Sub
             | Instr::Mul
             | Instr::Div
             | Instr::Neg
-            | Instr::Ldr(_, _)
-            | Instr::Str(_, _) => {
+            | Instr::Mod => {
                 unreachable!(
                     "gen_bin called on unresolved convenience instructions {:?}",
                     &instr

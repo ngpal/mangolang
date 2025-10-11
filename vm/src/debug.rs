@@ -31,7 +31,7 @@ impl<'a> Debugger<'a> {
         Self {
             vm,
             mem_offset: 0,
-            speed: 100,
+            speed: 256,
         }
     }
 
@@ -126,15 +126,15 @@ impl<'a> Debugger<'a> {
                             }
                         }
                         KeyCode::Char('>') => {
-                            if self.speed > 10 {
-                                // minimum 10ms
-                                self.speed -= 10;
+                            if self.speed > 1 {
+                                // minimum 1ms
+                                self.speed >>= 1;
                             }
                         }
                         KeyCode::Char('<') => {
-                            if self.speed < 2000 {
+                            if self.speed < 2048 {
                                 // max 2s
-                                self.speed += 10;
+                                self.speed <<= 1;
                             }
                         }
                         _ => {}
