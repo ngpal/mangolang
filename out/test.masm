@@ -31,14 +31,9 @@ JMP L2
 L0:
 PUSH16 45
 POPR r0
-CALL print
+INT 0
 LDR [fp, 0]
-PUSH16 65535
-XOR
-STR [fp, 0]
-LDR [fp, 0]
-PUSH16 1
-ADD
+NEG
 STR [fp, 0]
 
 L2:
@@ -52,11 +47,6 @@ L5:
 JMP L4
 
 L7:
-LDR [fp, -2]
-LDR [fp, -4]
-PUSH16 1
-MUL
-ADD
 LDR [fp, 0]
 PUSH16 10
 MOD
@@ -64,6 +54,11 @@ PUSH16 48
 ADD
 PUSH16 255
 AND
+LDR [fp, -2]
+LDR [fp, -4]
+PUSH16 1
+MUL
+ADD
 STB
 LDR [fp, -4]
 PUSH16 1
@@ -97,7 +92,7 @@ MUL
 ADD
 LDB
 POPR r0
-CALL print
+INT 0
 JMP L4
 
 L9:
@@ -112,15 +107,14 @@ PUSH16 0
 PUSHR fp
 ADD
 POPR sp
-PUSH16 2
-NEG
+PUSH16 2345
 CALL print_num
-PUSHR r4
+PUSHR sp
 PUSH16 2
 PUSH16 1
 MUL
 ADD
-POPR r4
+POPR sp
 MOV sp, fp
 POPR fp
 RET

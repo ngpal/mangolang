@@ -358,7 +358,7 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Assembly> {
             // int
             "int" => Instr::Int(parse_imm8(Some(rest), lineno)?),
             "iret" => Instr::Iret,
-            "setip" => Instr::SetIp(parse_imm16(Some(rest), lineno)?),
+            "bkpt" => Instr::Bkpt,
 
             _ => {
                 return Err(AssemblerError {

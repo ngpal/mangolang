@@ -5,8 +5,7 @@ fn print_num(n: int) {
 
 	if q < 0 {
 		disp '-';
-		q = q ^ 65535;
-		q = q + 1;
+		q = -q
 	}
 
 	loop {
@@ -30,5 +29,5 @@ fn print_num(n: int) {
 }
 
 fn main() {
-	print_num(-2)
+	print_num(2345)
 }

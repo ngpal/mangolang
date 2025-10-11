@@ -30,6 +30,7 @@ pub enum Instr {
 
     Int = 0x70,
     Iret = 0x71,
+    Bkpt = 0x72,
 }
 
 impl Instr {
@@ -59,6 +60,7 @@ impl Instr {
             0x52 => Some(Instr::Popr),
             0x70 => Some(Instr::Int),
             0x71 => Some(Instr::Iret),
+            0x72 => Some(Instr::Bkpt),
             _ => None,
         }
     }
@@ -86,6 +88,7 @@ impl Instr {
             Instr::Ret => 1,
             Instr::Int => 2,
             Instr::Iret => 3,
+            Instr::Bkpt => 1,
         }
     }
 }

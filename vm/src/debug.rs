@@ -31,7 +31,7 @@ impl<'a> Debugger<'a> {
         Self {
             vm,
             mem_offset: 0,
-            speed: 100,
+            speed: 128,
         }
     }
 
@@ -126,15 +126,15 @@ impl<'a> Debugger<'a> {
                             }
                         }
                         KeyCode::Char('>') => {
-                            if self.speed > 10 {
-                                // minimum 10ms
-                                self.speed -= 10;
+                            if self.speed > 1 {
+                                // minimum 1ms
+                                self.speed /= 2;
                             }
                         }
                         KeyCode::Char('<') => {
-                            if self.speed < 2000 {
+                            if self.speed < 2048 {
                                 // max 2s
-                                self.speed += 10;
+                                self.speed *= 2;
                             }
                         }
                         _ => {}
@@ -143,6 +143,12 @@ impl<'a> Debugger<'a> {
             }
 
             if running && !halted {
+                running = if let Some(Instr::Bkpt) = Instr::from_u8(self.vm.read_byte(self.vm.ip)) {
+                    false
+                } else {
+                    running
+                };
+
                 match self.vm.exec_instruction() {
                     Ok(true) => {
                         info_lines.push("program halted".into());
@@ -368,6 +374,8 @@ impl<'a> Debugger<'a> {
             0x70 => {
                 format!("INT {}", self.vm.memory[addr + 1])
             }
+            0x71 => "IRET".to_string(),
+            0x72 => "BKPT".to_string(),
             _ => format!("DB 0x{:02X}", op),
         };
 

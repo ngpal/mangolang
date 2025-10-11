@@ -5,11 +5,17 @@
 @define IH_BASE = 0x0110
 @define USER_CODE_BASE = 0x0910
 
+@define DSK_SEC = 0x4920
+@define DSK_ADR = 0x4922
+@define DSK_CMD = 0x4924
+@define DSK_STS = 0x4925
+
 ; load IVT into memory
 @section text
 	; counter on r0
 	; current IH_ADDR on r1
 	; current BASE_ADDR on r2
+	PUSH16  =USER_CODE_BASE
 
 	PUSH16  =IH_BASE
 	POPR    r1
@@ -18,9 +24,28 @@
 	POPR    r2
 
 loop:
+	; store address to the IH
 	PUSHR   r1
 	STR     [r2, 0]
 
+	; load the interrupt
+	PUSHR   r0
+	PUSH16  1
+	ADD
+	PUSH16  =DSK_SEC
+	STW
+
+	; set read addr
+ 	PUSHR   r1
+	PUSH16  =DSK_ADR
+	STW
+
+	; set cmd
+	PUSH16  1
+	PUSH16  =DSK_CMD
+	STB
+
+	; increment the IH addr
 	PUSHR   r1
 	PUSH16  =IH_SIZE
 	ADD
@@ -40,8 +65,53 @@ loop:
 	PUSH16  7
 	CMP
 
-	JEQ     end
+	JEQ     load_user
 	JMP     loop
 
+load_user:
+	PUSH16  =USER_CODE_BASE
+	POPR    r1
+
+	PUSH16  0
+	POPR    r0
+
+load_user_loop:
+	; load the interrupt
+	PUSHR   r0
+	PUSH16  9
+	ADD
+	PUSH16  =DSK_SEC
+	STW
+
+	; set read addr
+ 	PUSHR   r1
+	PUSH16  =DSK_ADR
+	STW
+
+	; set cmd
+	PUSH16  1
+	PUSH16  =DSK_CMD
+	STB
+
+	; increment the read addr
+	PUSHR   r1
+	PUSH16  =IH_SIZE
+	ADD
+	POPR    r1
+
+	; increment counter
+	PUSHR   r0
+	PUSH16  1
+	ADD
+	POPR    r0
+
+	PUSHR   r0
+	PUSH16  72
+	CMP
+
+	JEQ     end
+	JMP     load_user_loop
+
 end:
-	SETIP   =USER_CODE_BASE
+	BKPT
+	IRET

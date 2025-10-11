@@ -1,6 +1,0 @@
-; this is the bios code for the machine
-
-PUSH16 65
-POPR r0
-INT 0
-HALT

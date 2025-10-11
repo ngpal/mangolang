@@ -23,7 +23,7 @@ pub fn link_objects(objects: Vec<Vec<u8>>, base: u16) -> LinkerResult<Vec<u8>> {
     let mut symbols: HashMap<String, u16> = HashMap::new();
     let mut relocs: Vec<(usize, String, u8)> = Vec::new();
 
-    let mut instr_base = base as usize;
+    let mut instr_base = 0usize;
     let mut data_base = 0usize;
 
     for object in objects {
@@ -116,7 +116,7 @@ pub fn link_objects(objects: Vec<Vec<u8>>, base: u16) -> LinkerResult<Vec<u8>> {
 
         if *kind == 0 {
             // Abs16
-            let bytes = addr.to_le_bytes();
+            let bytes = (addr + base).to_le_bytes();
             instr_blob[*instr_ofst] = bytes[0];
             instr_blob[*instr_ofst + 1] = bytes[1];
         } else if *kind == 1 {
@@ -154,7 +154,21 @@ struct Cli {
 
     // base address modification
     #[arg(short, long)]
-    base: Option<u16>,
+    base: Option<String>,
+}
+
+fn parse_base(base: &str) -> u16 {
+    if let Some(hex) = base.strip_prefix("0x") {
+        u16::from_str_radix(hex, 16).unwrap_or_else(|_| {
+            eprintln!("invalid hex base address: {}", base);
+            std::process::exit(1);
+        })
+    } else {
+        base.parse::<u16>().unwrap_or_else(|_| {
+            eprintln!("invalid decimal base address: {}", base);
+            std::process::exit(1);
+        })
+    }
 }
 
 fn main() -> io::Result<()> {
@@ -172,7 +186,7 @@ fn main() -> io::Result<()> {
     }
 
     let base = if let Some(ofst) = cli.base {
-        ofst
+        parse_base(&ofst)
     } else {
         // user code base
         0x0910
@@ -186,7 +200,7 @@ fn main() -> io::Result<()> {
     // default output: a.out
     let output = cli.output.unwrap_or_else(|| "a.out".to_string());
     fs::write(&output, binary)?;
-    println!("wrote binary to {}; base offset 0x{:4X}", output, base);
+    println!("wrote binary to {}; base offset 0x{:04X}", output, base);
 
     Ok(())
 }

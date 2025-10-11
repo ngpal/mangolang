@@ -362,16 +362,16 @@ main:
 
 # 11-10-2025
 
-- [x] `SETIP` privilaged instruction
-- [ ] first sector contains BIOS, its loaded by the host from the ROM
-- [ ] the BIOS then gets executed, which saves the IVT, and loads the Interrupt handlers into memory
-  - [ ] lets define 64 interrupts for now
-    - [ ] 0 - print char
-    - [ ] 2 - send command to disk
-    - [ ] rest can `IRET` straight back
-  - [ ] MMIO definitions for disk and terminal
-  - [ ] enterrupt handlers can live in sectors 1-8 and will be loaded in by the BIOS
-  - [ ] user code can live in sector 9-72 (16KB) (64 sectors)
+- [x] first sector contains BIOS, its loaded by the host from the ROM
+- [x] the BIOS then gets executed, which saves the IVT, and loads the Interrupt handlers into memory
+  - [x] lets define 8 interrupts for now
+    - [x] 0 - print char
+    - [x] 2 - send command to disk
+    - [x] rest can `IRET` straight back
+  - [x] MMIO definitions for disk and terminal
+  - [x] enterrupt handlers can live in sectors 1-8 and will be loaded in by the BIOS
+  - [x] user code can live in sector 9-72 (16KB) (64 sectors)
+- [ ] imul and idiv subroutines are horribly inefficient. fix that
 
 ## Memory Layout
 
@@ -393,8 +393,8 @@ main:
 | INPUT       | 0x4911 | 1B   | Data input from terminal, 0 if no input      |
 | DISK_SEC    | 0x4920 | 2B   | Sector address to load                       |
 | DISK_ADR    | 0x4922 | 2B   | Address to read/write to/from                |
-| DISK_CMD    | 0x4923 | 1B   | 0 = idle , 1 = read, 2 = write (unsupported) |
-| DISK_STATUS | 0x4924 | 1B   | 0 = ready, 1 = busy, 2 = error               |
+| DISK_CMD    | 0x4924 | 1B   | 0 = idle , 1 = read, 2 = write (unsupported) |
+| DISK_STATUS | 0x4925 | 1B   | 0 = ready, 1 = busy, 2 = error               |
 
 - [ ] immediate values in the instructions?
 - [ ] allow multiple files

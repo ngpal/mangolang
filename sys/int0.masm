@@ -1,0 +1,8 @@
+; print interrupt, writes r0 to the print line of the terminal
+
+@define PRINT_ADDR = 0x4910
+
+PUSHR  r0
+PUSH16 =PRINT_ADDR
+STB
+IRET

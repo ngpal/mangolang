@@ -28,5 +28,8 @@ cargo run --package assembler -q -- stdlib/math.masm -o stdlib/math.mobj || exit
 echo "linking $OUT_DIR/$BASENAME.mobj + stdlib/math.mobj -> $OUT_DIR/$BASENAME.mbin"
 cargo run --package linker -q --  "$OUT_DIR/$BASENAME.mobj" stdlib/math.mobj -o "$OUT_DIR/$BASENAME.mbin" || exit 1
 
+echo "loading $OUT_DIR/$BASENAME.mbin to sector 0x0009 of the VM"
+cargo run --package vm -q -- dw "$OUT_DIR/$BASENAME.mbin" 0x0009
+
 echo "running $OUT_DIR/$BASENAME.mbin"
 cargo run --package vm -q -- run

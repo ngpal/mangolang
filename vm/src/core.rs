@@ -8,8 +8,8 @@ use crate::{
 // const MBIN_MAGIC: &[u8; 4] = b"MBIN";
 const STACK_START: usize = 0xFF00;
 // const HEAP_START: usize = 0x4A10;
-// const MMIO_START: usize = 0x4910;
-// const USER_CODE_START: usize = 0x0910;
+const MMIO_START: usize = 0x4910;
+const USER_CODE_START: usize = 0x0910;
 // const USER_CODE_SIZE: usize = MMIO_START - USER_CODE_START;
 // const INT_HANDLER_START: usize = 0x0110;
 const IVT_START: usize = 0x0100;
@@ -17,6 +17,11 @@ const IVT_START: usize = 0x0100;
 pub const MEM_SIZE: usize = 0x10000;
 
 pub const MMIO_PRINT: usize = 0x4910;
+
+pub const MMIO_DSK_SEC: usize = 0x4920;
+pub const MMIO_DSK_ADR: usize = 0x4922;
+pub const MMIO_DSK_CMD: usize = 0x4924;
+pub const MMIO_DSK_STS: usize = 0x4925;
 
 #[derive(Default)]
 pub struct Flags {
@@ -86,7 +91,6 @@ pub struct Vm {
     pub flags: Flags,
     pub registers: Registers,
     pub ip: u16,
-    pub program_end: usize,
     pub disk: DiskDriver,
     pub video: Video,
 }
@@ -98,7 +102,6 @@ impl Vm {
             flags: Flags::default(),
             registers: Registers::new(),
             ip: 0,
-            program_end: 0,
             disk: DiskDriver::new(),
             video: Video::new(),
         }
@@ -110,10 +113,15 @@ impl Vm {
             self.memory[addr] = *byte;
         }
 
+        // enter kernel mode
+        self.flags.k = true;
+        // set disk status ready
+        self.memory[MMIO_DSK_STS] = 0;
+
         Ok(())
     }
 
-    fn read_word(&self, addr: u16) -> u16 {
+    pub fn read_word(&self, addr: u16) -> u16 {
         let lo = self.memory[addr as usize];
         let hi = self.memory[addr as usize + 1];
         u16::from_le_bytes([lo, hi])
@@ -154,7 +162,7 @@ impl Vm {
         Ok(val)
     }
 
-    fn read_byte(&self, addr: u16) -> u8 {
+    pub fn read_byte(&self, addr: u16) -> u8 {
         self.memory[addr as usize]
     }
 
@@ -187,7 +195,9 @@ impl Vm {
         if cond {
             let new_ip = base.wrapping_add(offset);
 
-            if new_ip < 0 || (new_ip as usize) >= self.program_end {
+            if !self.flags.k
+                && ((new_ip as usize) < USER_CODE_START || (new_ip as usize) > MMIO_START)
+            {
                 return Err(RuntimeError(format!("invalid jump target {}", new_ip)));
             }
 
@@ -317,9 +327,12 @@ impl Vm {
                 self.ip = addr;
                 self.flags.k = false;
             }
+            // do nothing
+            Instr::Bkpt => {}
         }
 
         self.update_video();
+        self.update_disk()?;
         Ok(false)
     }
 
@@ -342,6 +355,25 @@ impl Vm {
             self.video.put_char(self.memory[MMIO_PRINT]);
             self.memory[MMIO_PRINT] = 0
         }
+    }
+
+    pub fn update_disk(&mut self) -> RuntimeResult<()> {
+        // only read supported rn
+        if self.memory[MMIO_DSK_STS] == 0 && self.memory[MMIO_DSK_CMD] == 1 {
+            self.memory[MMIO_DSK_STS] = 1;
+            self.memory[MMIO_DSK_CMD] = 0;
+
+            let sec = self.disk.get_sector(self.read_word(MMIO_DSK_SEC as u16));
+            let addr = self.read_word(MMIO_DSK_ADR as u16);
+
+            for (i, byte) in sec.iter().enumerate() {
+                self.write_byte(addr + i as u16, *byte)?;
+            }
+
+            self.memory[MMIO_DSK_STS] = 0;
+        }
+
+        Ok(())
     }
 
     // pub fn disassemble(&self, start: usize, end: usize) -> Vec<String> {

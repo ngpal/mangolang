@@ -38,7 +38,7 @@ pub enum Instr {
 
     Int(u8),
     Iret,
-    SetIp(u16),
+    Bkpt,
 
     // pseudo instructions
     Lbl(String),
@@ -80,7 +80,7 @@ impl Instr {
             Instr::Ldb => 1,
             Instr::Stb => 1,
             Instr::Iret => 1,
-            Instr::SetIp(_) => 3,
+            Instr::Bkpt => 1,
             Instr::Ldr(_, _)
             | Instr::Str(_, _)
             | Instr::Sub
