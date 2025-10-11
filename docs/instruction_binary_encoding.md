@@ -56,13 +56,14 @@ Instruction Set (VM v0.1.1)
 
 ### **0x4\_ - Bitwise Ops**
 
-| Opcode | Mnemonic | Operands | Notes         |
-| ------ | -------- | -------- | ------------- |
-| 0x40   | NOT      | -        | bitwise not   |
-| 0x41   | AND      | -        | bitwise and   |
-| 0x42   | OR       | -        | bitwise or    |
-| 0x43   | XOR      | -        | bitwise xor   |
-| 0x44   | SHFT     | -        | bitwise shift |
+| Opcode | Mnemonic | Operands | Notes               |
+| ------ | -------- | -------- | ------------------- |
+| 0x40   | NOT      | -        | bitwise not         |
+| 0x41   | AND      | -        | bitwise and         |
+| 0x42   | OR       | -        | bitwise or          |
+| 0x43   | XOR      | -        | bitwise xor         |
+| 0x44   | SHL      | -        | bitwise shift left  |
+| 0x45   | SHR      | -        | bitwise shift right |
 
 ### **0x5\_ - Register Ops**
 

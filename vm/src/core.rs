@@ -219,7 +219,13 @@ impl Vm {
                 self.push_word(word)?;
             }
             Instr::Halt => return Ok(true),
-            Instr::Add | Instr::Cmp | Instr::And | Instr::Or | Instr::Xor | Instr::Shft => {
+            Instr::Add
+            | Instr::Cmp
+            | Instr::And
+            | Instr::Or
+            | Instr::Xor
+            | Instr::Shl
+            | Instr::Shr => {
                 let right = self.pop_word()?;
                 let left = self.pop_word()?;
 
@@ -229,26 +235,8 @@ impl Vm {
                     Instr::And => (left & right, false),
                     Instr::Or => (left | right, false),
                     Instr::Xor => (left ^ right, false),
-                    Instr::Shft => {
-                        let sh = right as i16;
-
-                        let amt = sh.unsigned_abs() as usize;
-                        let amt = if amt >= 16 { 15 } else { amt };
-
-                        let word_bits = 16;
-                        let res = if sh >= 0 {
-                            if amt as u32 >= word_bits {
-                                0
-                            } else {
-                                left << (amt as u32)
-                            }
-                        } else if (-sh) as u32 >= word_bits {
-                            0
-                        } else {
-                            left >> ((-sh) as u32)
-                        };
-                        (res, false)
-                    }
+                    Instr::Shl => left.overflowing_shl(right as u32),
+                    Instr::Shr => left.overflowing_shr(right as u32),
                     _ => unreachable!(),
                 };
 

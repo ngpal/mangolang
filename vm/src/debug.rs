@@ -31,7 +31,7 @@ impl<'a> Debugger<'a> {
         Self {
             vm,
             mem_offset: 0,
-            speed: 128,
+            speed: 100,
         }
     }
 
@@ -126,15 +126,15 @@ impl<'a> Debugger<'a> {
                             }
                         }
                         KeyCode::Char('>') => {
-                            if self.speed > 1 {
-                                // minimum 1ms
-                                self.speed /= 2;
+                            if self.speed > 10 {
+                                // minimum 10ms
+                                self.speed -= 10;
                             }
                         }
                         KeyCode::Char('<') => {
-                            if self.speed < 2048 {
+                            if self.speed < 2000 {
                                 // max 2s
-                                self.speed *= 2;
+                                self.speed += 10;
                             }
                         }
                         _ => {}
@@ -358,7 +358,8 @@ impl<'a> Debugger<'a> {
             0x41 => "AND".into(),
             0x42 => "OR".into(),
             0x43 => "XOR".into(),
-            0x44 => "SHFT".into(),
+            0x44 => "SHL".into(),
+            0x45 => "SHR".into(),
             0x50 => {
                 let byte = self.vm.memory[addr + 1];
                 let rd = byte >> 4;

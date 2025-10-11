@@ -30,7 +30,8 @@ pub enum Instr {
     And,
     Or,
     Xor,
-    Shft,
+    Shl,
+    Shr,
 
     Mov(u8, u8),
     Pushr(u8),
@@ -71,7 +72,7 @@ impl Instr {
             Instr::CallLbl(_) => 3,
             Instr::And => 1,
             Instr::Or => 1,
-            Instr::Shft => 1,
+            Instr::Shl | Instr::Shr => 1,
             Instr::Xor => 1,
             Instr::Call(_) => 3,
             Instr::Ret => 1,

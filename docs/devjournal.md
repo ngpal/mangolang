@@ -371,6 +371,7 @@ main:
   - [x] MMIO definitions for disk and terminal
   - [x] enterrupt handlers can live in sectors 1-8 and will be loaded in by the BIOS
   - [x] user code can live in sector 9-72 (16KB) (64 sectors)
+- [x] split shift instructions to `SHL` and `SHR`
 - [ ] imul and idiv subroutines are horribly inefficient. fix that
 
 ## Memory Layout

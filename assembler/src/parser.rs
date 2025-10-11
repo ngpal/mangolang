@@ -332,7 +332,8 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Assembly> {
             "and" => Instr::And,
             "or" => Instr::Or,
             "xor" => Instr::Xor,
-            "shft" => Instr::Shft,
+            "shl" => Instr::Shl,
+            "shr" => Instr::Shr,
 
             // register ops
             "mov" => {
