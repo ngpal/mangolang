@@ -1,11 +1,19 @@
 #!/bin/bash
 
-# usage: ./run_mango.sh source_file
+# usage: ./run_mango.sh [-d] source_file
 
 source ./.envrc
 
+DEBUG_FLAG=""
+
+# parse -d flag
+if [ "$1" = "-d" ]; then
+    DEBUG_FLAG="-d"
+    shift
+fi
+
 if [ -z "$1" ]; then
-    echo "usage: $0 <source_file>"
+    echo "usage: $0 [-d] <source_file>"
     exit 1
 fi
 
@@ -26,10 +34,10 @@ echo "assembling stdlib/math.masm -> stdlib/math.mobj"
 cargo run --package assembler -q -- stdlib/math.masm -o stdlib/math.mobj || exit 1
 
 echo "linking $OUT_DIR/$BASENAME.mobj + stdlib/math.mobj -> $OUT_DIR/$BASENAME.mbin"
-cargo run --package linker -q --  "$OUT_DIR/$BASENAME.mobj" stdlib/math.mobj -o "$OUT_DIR/$BASENAME.mbin" || exit 1
+cargo run --package linker -q -- "$OUT_DIR/$BASENAME.mobj" stdlib/math.mobj -o "$OUT_DIR/$BASENAME.mbin" || exit 1
 
 echo "loading $OUT_DIR/$BASENAME.mbin to sector 0x0009 of the VM"
-cargo run --package vm -q -- dw "$OUT_DIR/$BASENAME.mbin" 0x0009
+cargo run --package vm -q -- dw "$OUT_DIR/$BASENAME.mbin" 0x0009 || exit 1
 
 echo "running $OUT_DIR/$BASENAME.mbin"
-cargo run --package vm -q -- run
+cargo run --package vm -q -- run $DEBUG_FLAG

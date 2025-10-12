@@ -366,16 +366,10 @@ main:
 - [x] the BIOS then gets executed, which saves the IVT, and loads the Interrupt handlers into memory
   - [x] lets define 8 interrupts for now
     - [x] 0 - print char
-    - [x] 2 - send command to disk
     - [x] rest can `IRET` straight back
   - [x] MMIO definitions for disk and terminal
   - [x] enterrupt handlers can live in sectors 1-8 and will be loaded in by the BIOS
   - [x] user code can live in sector 9-72 (16KB) (64 sectors)
-- [x] split shift instructions to `SHL` and `SHR`
-- [x] immediate instructions for arithmetics and moves
-- [x] imul and idiv subroutines are horribly inefficient. fix that
-- [ ] normal running mode to run at full speed
-- [ ] optimize loading user code
 
 ## Memory Layout
 
@@ -400,8 +394,16 @@ main:
 | DISK_CMD    | 0x4924 | 1B   | 0 = idle , 1 = read, 2 = write (unsupported) |
 | DISK_STATUS | 0x4925 | 1B   | 0 = ready, 1 = busy, 2 = error               |
 
+- [x] split shift instructions to `SHL` and `SHR`
+- [x] immediate instructions for arithmetics and moves
+- [x] imul and idiv subroutines are horribly inefficient. fix that
+- [x] normal running mode to run at full speed
+
+# 12-10-2025
+
+- [ ] README
 - [ ] allow multiple files
-  - [ ] some level of label obfuscation for handling namespace collisions on the assembler level
+  - [ ] some level of label scrambling for handling namespace collisions on the assembler level
   - [ ] enforce main function on the assembler level not codegen level
   - [ ] allow only function headers to pass through for functions implemented in assembly
     - [ ] new syntax for letting a function pass through the undefined functions check
@@ -414,7 +416,6 @@ main:
 - [ ] allow only `uint`s to index
 - [ ] send all errors together instead of bubbling up
 - [ ] heap allocation!
-  - [ ] simple bump allocator
 - [ ] vectors!
 - [ ] floats?
 - [ ] implement an IR for base level optimizations

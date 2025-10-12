@@ -29,5 +29,5 @@ fn print_num(n: int) {
 }
 
 fn main() {
-	print_num(-29876)
+	print_num(40000)
 }
