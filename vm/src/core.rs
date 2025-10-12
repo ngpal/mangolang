@@ -331,7 +331,7 @@ impl Vm {
             Instr::Bkpt => {}
         }
 
-        self.update_video();
+        self.update_terminal();
         self.update_disk()?;
         Ok(false)
     }
@@ -350,7 +350,7 @@ impl Vm {
         }
     }
 
-    pub fn update_video(&mut self) {
+    pub fn update_terminal(&mut self) {
         if self.memory[MMIO_PRINT] != 0 {
             self.video.put_char(self.memory[MMIO_PRINT]);
             self.memory[MMIO_PRINT] = 0
@@ -401,8 +401,11 @@ impl Vm {
         terminal::enable_raw_mode().map_err(wrap_err)?;
         execute!(stdout, terminal::EnterAlternateScreen, cursor::Hide).map_err(wrap_err)?;
 
+        // draw static UI once
+        self.draw_static_ui().map_err(wrap_err)?;
+
         loop {
-            // check for quit key
+            // quit check
             if event::poll(Duration::from_millis(0)).map_err(wrap_err)? {
                 if let Event::Key(key) = event::read().map_err(wrap_err)? {
                     if let KeyCode::Char('q') = key.code {
@@ -411,75 +414,79 @@ impl Vm {
                 }
             }
 
-            // execute VM instructions until next frame
+            // execute one instruction (may mark video as dirty)
             if running && self.exec_instruction()? {
                 running = false;
             }
 
-            self.draw_video().map_err(wrap_err)?;
+            // only redraw if needed
+            if self.video.is_dirty() {
+                self.update_video().map_err(wrap_err)?;
+                self.video.reset_dirty();
+            }
         }
 
-        // cleanup
         execute!(stdout, cursor::Show, terminal::LeaveAlternateScreen).map_err(wrap_err)?;
         terminal::disable_raw_mode().map_err(wrap_err)?;
         Ok(())
     }
 
-    pub fn draw_video(&self) -> std::io::Result<()> {
+    fn draw_static_ui(&self) -> std::io::Result<()> {
         let mut out = stdout();
-
-        // get terminal size
         let (term_width, term_height) = size()?;
+        let frame_width = VIDEO_WIDTH + 2;
+        let frame_height = VIDEO_HEIGHT + 3;
 
-        // compute offsets to center frame
-        let frame_width = VIDEO_WIDTH + 2; // +2 for left/right borders
-        let frame_height = VIDEO_HEIGHT + 2 + 1; // +2 for top/bottom borders, +1 for title
+        let x_offset = (term_width as usize - frame_width).max(0) / 2;
+        let y_offset = (term_height as usize - frame_height).max(0) / 2;
 
-        let x_offset = if term_width as usize > frame_width {
-            (term_width as usize - frame_width) / 2
-        } else {
-            0
-        };
-
-        let y_offset = if term_height as usize > frame_height {
-            (term_height as usize - frame_height) / 2
-        } else {
-            0
-        };
-
-        // clear screen
         execute!(out, Clear(ClearType::All))?;
 
-        // print title
         let title = " VM VIDEO OUTPUT ";
         let title_start = x_offset + (frame_width.saturating_sub(title.len())) / 2;
         execute!(out, MoveTo(title_start as u16, y_offset as u16))?;
         writeln!(out, "{}", title)?;
 
-        // top border
         let top = format!("┌{}┐", "─".repeat(VIDEO_WIDTH));
         execute!(out, MoveTo(x_offset as u16, (y_offset + 1) as u16))?;
         writeln!(out, "{}", top)?;
 
-        // video rows
         for row in 0..VIDEO_HEIGHT {
             execute!(out, MoveTo(x_offset as u16, (y_offset + 2 + row) as u16))?;
-            write!(out, "│")?;
-            for col in 0..VIDEO_WIDTH {
-                let ch = self.video.get_char(row * VIDEO_WIDTH + col);
-                let ch = if ch == 0 { ' ' } else { ch as char };
-                write!(out, "{}", ch)?;
-            }
-            writeln!(out, "│")?;
+            writeln!(out, "│{}│", " ".repeat(VIDEO_WIDTH))?;
         }
 
-        // bottom border
         let bottom = format!("└{}┘", "─".repeat(VIDEO_WIDTH));
         execute!(
             out,
             MoveTo(x_offset as u16, (y_offset + 2 + VIDEO_HEIGHT) as u16)
         )?;
         writeln!(out, "{}", bottom)?;
+        out.flush()?;
+        Ok(())
+    }
+
+    fn update_video(&self) -> std::io::Result<()> {
+        let mut out = stdout();
+        let (term_width, term_height) = size()?;
+
+        let frame_width = VIDEO_WIDTH + 2;
+        let frame_height = VIDEO_HEIGHT + 3;
+
+        let x_offset = (term_width as usize - frame_width).max(0) / 2;
+        let y_offset = (term_height as usize - frame_height).max(0) / 2;
+
+        for row in 0..VIDEO_HEIGHT {
+            execute!(
+                out,
+                MoveTo((x_offset + 1) as u16, (y_offset + 2 + row) as u16)
+            )?;
+            for col in 0..VIDEO_WIDTH {
+                let ch = self.video.get_char(row * VIDEO_WIDTH + col);
+                let ch = if ch == 0 { ' ' } else { ch as char };
+                write!(out, "{}", ch)?;
+            }
+        }
 
         out.flush()?;
         Ok(())

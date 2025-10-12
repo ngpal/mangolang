@@ -1,31 +1,129 @@
+@section data
+@section text
 CALL main
 HALT
+
+print_num:
+PUSHR fp
+MOV fp, sp
+PUSH16 65530
+PUSHR fp
+ADD
+POPR sp
+LDR [fp, 6]
+STR [fp, 0]
+PUSHR sp
+PUSH16 6
+SUB
+POPR sp
+PUSHR sp
+PUSH16 2
+ADD
+STR [fp, -2]
+PUSH16 0
+STR [fp, -4]
+LDR [fp, 0]
+PUSH16 0
+CMP
+JLT L0
+JMP L2
+
+L0:
+PUSH16 45
+POPR r0
+INT 0
+LDR [fp, 0]
+NEG
+STR [fp, 0]
+
+L2:
+LDR [fp, 0]
+PUSH16 0
+CMP
+JEQ L5
+JMP L7
+
+L5:
+JMP L4
+
+L7:
+LDR [fp, 0]
+PUSH16 10
+MOD
+PUSH16 48
+ADD
+PUSH16 255
+AND
+LDR [fp, -2]
+LDR [fp, -4]
+PUSH16 1
+MUL
+ADD
+STB
+LDR [fp, -4]
+PUSH16 1
+ADD
+STR [fp, -4]
+LDR [fp, 0]
+PUSH16 10
+DIV
+STR [fp, 0]
+JMP L2
+
+L4:
+LDR [fp, -4]
+PUSH16 1
+SUB
+STR [fp, -4]
+LDR [fp, -4]
+PUSH16 0
+CMP
+JLT L10
+JMP L12
+
+L10:
+JMP L9
+
+L12:
+LDR [fp, -2]
+LDR [fp, -4]
+PUSH16 1
+MUL
+ADD
+LDB
+POPR r0
+INT 0
+JMP L4
+
+L9:
+MOV sp, fp
+POPR fp
+RET
 
 fib:
 PUSHR fp
 MOV fp, sp
 PUSH16 0
-PUSHR sp
+PUSHR fp
 ADD
 POPR sp
-LOADR [fp, 6]
+LDR [fp, 6]
 PUSH16 1
 CMP
-JGT L2
-JMP L0
-JMP L2
+JGT L15
+JMP L13
+JMP L15
 
-L0:
+L13:
 PUSH16 1
-STORER [fp, 8]
+STR [fp, 8]
 MOV sp, fp
 POPR fp
 RET
-JMP L2
 
-L2:
+L15:
 PUSH16 0
-LOADR [fp, 6]
+LDR [fp, 6]
 PUSH16 1
 SUB
 CALL fib
@@ -36,7 +134,7 @@ MUL
 ADD
 POPR sp
 PUSH16 0
-LOADR [fp, 6]
+LDR [fp, 6]
 PUSH16 2
 SUB
 CALL fib
@@ -47,7 +145,7 @@ MUL
 ADD
 POPR sp
 ADD
-STORER [fp, 8]
+STR [fp, 8]
 MOV sp, fp
 POPR fp
 RET
@@ -59,26 +157,25 @@ main:
 PUSHR fp
 MOV fp, sp
 PUSH16 65534
-PUSHR sp
+PUSHR fp
 ADD
 POPR sp
 PUSH16 0
-STORER [fp, 0]
+STR [fp, 0]
 
-L3:
-LOADR [fp, 0]
-PUSH16 11
+L16:
+LDR [fp, 0]
+PUSH16 23
 CMP
-JGT L5
-JMP L7
+JGT L18
+JMP L20
 
-L5:
-JMP L4
-JMP L7
+L18:
+JMP L17
 
-L7:
+L20:
 PUSH16 0
-LOADR [fp, 0]
+LDR [fp, 0]
 CALL fib
 PUSHR sp
 PUSH16 2
@@ -86,15 +183,26 @@ PUSH16 1
 MUL
 ADD
 POPR sp
+CALL print_num
+PUSHR sp
+PUSH16 2
+PUSH16 1
+MUL
+ADD
+POPR sp
+PUSH16 10
 POPR r0
-CALL print
-LOADR [fp, 0]
+INT 0
+PUSH16 13
+POPR r0
+INT 0
+LDR [fp, 0]
 PUSH16 1
 ADD
-STORER [fp, 0]
-JMP L3
+STR [fp, 0]
+JMP L16
 
-L4:
+L17:
 MOV sp, fp
 POPR fp
 RET
