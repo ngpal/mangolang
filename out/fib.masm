@@ -103,7 +103,7 @@ RET
 fib:
 PUSHR fp
 MOV fp, sp
-PUSH16 0
+PUSH16 65534
 PUSHR fp
 ADD
 POPR sp
@@ -116,36 +116,47 @@ JMP L15
 
 L13:
 PUSH16 1
-STR [fp, 8]
+STR [fp, 10]
 MOV sp, fp
 POPR fp
 RET
 
 L15:
 PUSH16 0
+LDR [fp, 8]
 LDR [fp, 6]
 PUSH16 1
 SUB
 CALL fib
 PUSHR sp
 PUSH16 2
-PUSH16 1
+PUSH16 2
 MUL
 ADD
 POPR sp
 PUSH16 0
+LDR [fp, 8]
 LDR [fp, 6]
 PUSH16 2
 SUB
 CALL fib
 PUSHR sp
 PUSH16 2
-PUSH16 1
+PUSH16 2
 MUL
 ADD
 POPR sp
 ADD
-STR [fp, 8]
+STR [fp, 0]
+LDR [fp, 0]
+LDR [fp, 8]
+LDR [fp, 6]
+PUSH16 2
+MUL
+ADD
+STW
+LDR [fp, 0]
+STR [fp, 10]
 MOV sp, fp
 POPR fp
 RET
@@ -156,16 +167,28 @@ RET
 main:
 PUSHR fp
 MOV fp, sp
-PUSH16 65534
+PUSH16 65530
 PUSHR fp
 ADD
 POPR sp
 PUSH16 0
 STR [fp, 0]
+PUSH16 3
+STR [fp, -2]
+PUSHR sp
+PUSH16 6
+SUB
+POPR sp
+PUSHR sp
+PUSH16 2
+ADD
+STR [fp, -4]
 
 L16:
 LDR [fp, 0]
-PUSH16 23
+LDR [fp, -2]
+PUSH16 1
+SUB
 CMP
 JGT L18
 JMP L20
@@ -175,11 +198,36 @@ JMP L17
 
 L20:
 PUSH16 0
+LDR [fp, -4]
+LDR [fp, 0]
+PUSH16 2
+MUL
+ADD
+STW
+LDR [fp, 0]
+PUSH16 1
+ADD
+STR [fp, 0]
+JMP L16
+
+L17:
+LDR [fp, 0]
+PUSH16 23
+CMP
+JGT L23
+JMP L25
+
+L23:
+JMP L22
+
+L25:
+PUSH16 0
+LDR [fp, -4]
 LDR [fp, 0]
 CALL fib
 PUSHR sp
 PUSH16 2
-PUSH16 1
+PUSH16 2
 MUL
 ADD
 POPR sp
@@ -200,9 +248,9 @@ LDR [fp, 0]
 PUSH16 1
 ADD
 STR [fp, 0]
-JMP L16
+JMP L17
 
-L17:
+L22:
 MOV sp, fp
 POPR fp
 RET
