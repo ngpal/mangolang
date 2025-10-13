@@ -30,8 +30,10 @@ fn print_num(n: int) {
 
 fn fib(mem: [int], n: int) -> int {
     if n <= 1 {
-        return 1;
-    } else if mem[n] != 0 {
+		mem[n] = 1;
+    }
+
+	if mem[n] != 0 {
 		return mem[n];
 	}
 
@@ -43,8 +45,8 @@ fn fib(mem: [int], n: int) -> int {
 
 fn main() {
 	var i = 0;
-	var nums = 3;
-	var mem[3: int];
+	var nums = 1;
+	var mem[1: int];
 
 	// initialize mem to 0s
 	loop {
@@ -55,15 +57,20 @@ fn main() {
 		mem[i] = 0;
 		i = i + 1;
 	}
-	
+
+	i = 0;
 	loop {
-		if i > 23 {
+		if i == nums {
 			break;
 		}
-
+	
+ 		// print_num(i + 1);
+		// disp '.';
+		disp ' ';
 		print_num(fib(mem, i));
 		disp '\n';
 		disp '\r';
 		i = i + 1;
+		breakpoint;
 	}
 }

@@ -352,6 +352,26 @@ impl<'a> Debugger<'a> {
                 format!("CALL 0x{:04X}", addr16)
             }
             0x25 => "RET".to_string(),
+            0x26 => {
+                let addr16 =
+                    u16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
+                format!("JMP {}", addr16)
+            }
+            0x27 => {
+                let addr16 =
+                    u16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
+                format!("JLT {}", addr16)
+            }
+            0x28 => {
+                let addr16 =
+                    u16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
+                format!("JGT {}", addr16)
+            }
+            0x29 => {
+                let addr16 =
+                    u16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
+                format!("JEQ {}", addr16)
+            }
             0x30 => "ADD".into(),
             0x35 => "CMP".into(),
             0x40 => "NOT".into(),
@@ -432,6 +452,11 @@ impl<'a> Debugger<'a> {
             Span::raw("V="),
             Span::styled(
                 if f.v { "1" } else { "0" },
+                Style::default().fg(if f.v { Color::Green } else { Color::Red }),
+            ),
+            Span::raw("K="),
+            Span::styled(
+                if f.k { "1" } else { "0" },
                 Style::default().fg(if f.v { Color::Green } else { Color::Red }),
             ),
         ]));

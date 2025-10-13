@@ -116,12 +116,39 @@ JMP L15
 
 L13:
 PUSH16 1
+LDR [fp, 8]
+LDR [fp, 6]
+PUSH16 2
+MUL
+ADD
+STW
+
+L15:
+LDR [fp, 8]
+LDR [fp, 6]
+PUSH16 2
+MUL
+ADD
+LDW
+PUSH16 0
+CMP
+JEQ L18
+JMP L16
+JMP L18
+
+L16:
+LDR [fp, 8]
+LDR [fp, 6]
+PUSH16 2
+MUL
+ADD
+LDW
 STR [fp, 10]
 MOV sp, fp
 POPR fp
 RET
 
-L15:
+L18:
 PUSH16 0
 LDR [fp, 8]
 LDR [fp, 6]
@@ -173,10 +200,10 @@ ADD
 POPR sp
 PUSH16 0
 STR [fp, 0]
-PUSH16 3
+PUSH16 1
 STR [fp, -2]
 PUSHR sp
-PUSH16 6
+PUSH16 2
 SUB
 POPR sp
 PUSHR sp
@@ -184,19 +211,19 @@ PUSH16 2
 ADD
 STR [fp, -4]
 
-L16:
+L19:
 LDR [fp, 0]
 LDR [fp, -2]
 PUSH16 1
 SUB
 CMP
-JGT L18
+JGT L21
+JMP L23
+
+L21:
 JMP L20
 
-L18:
-JMP L17
-
-L20:
+L23:
 PUSH16 0
 LDR [fp, -4]
 LDR [fp, 0]
@@ -208,19 +235,26 @@ LDR [fp, 0]
 PUSH16 1
 ADD
 STR [fp, 0]
-JMP L16
+JMP L19
 
-L17:
+L20:
+PUSH16 0
+STR [fp, 0]
+
+L24:
 LDR [fp, 0]
-PUSH16 23
+LDR [fp, -2]
 CMP
-JGT L23
+JEQ L26
+JMP L28
+
+L26:
 JMP L25
 
-L23:
-JMP L22
-
-L25:
+L28:
+PUSH16 32
+POPR r0
+INT 0
 PUSH16 0
 LDR [fp, -4]
 LDR [fp, 0]
@@ -248,9 +282,10 @@ LDR [fp, 0]
 PUSH16 1
 ADD
 STR [fp, 0]
-JMP L17
+BKPT
+JMP L24
 
-L22:
+L25:
 MOV sp, fp
 POPR fp
 RET

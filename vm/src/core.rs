@@ -202,7 +202,7 @@ impl Vm {
     }
 
     fn jump_rel(&mut self, cond: bool) -> Result<bool, RuntimeError> {
-        let offset = self.fetch_byte() as i8 as isize;
+        let offset = self.fetch_word() as i16 as isize;
         let base = self.ip as isize;
         if cond {
             let new_ip = base.wrapping_add(offset);
@@ -258,10 +258,10 @@ impl Vm {
 
                 self.set_flags(result, overflow);
             }
-            Instr::Jmp8 => return self.jump_rel(true),
-            Instr::Jlt8 => return self.jump_rel(self.flags.n),
-            Instr::Jgt8 => return self.jump_rel(!self.flags.z && !self.flags.n),
-            Instr::Jeq8 => return self.jump_rel(self.flags.z),
+            Instr::Jmp => return self.jump_rel(true),
+            Instr::Jlt => return self.jump_rel(self.flags.n),
+            Instr::Jgt => return self.jump_rel(!self.flags.z && !self.flags.n),
+            Instr::Jeq => return self.jump_rel(self.flags.z),
             Instr::Not => {
                 let val = self.pop_word()?;
                 self.push_word(!val)?;
@@ -304,6 +304,13 @@ impl Vm {
             }
             Instr::Call => {
                 let addr = self.fetch_word();
+                if !self.flags.k
+                    && ((addr as usize) < USER_CODE_START || (addr as usize) > MMIO_START)
+                {
+                    return Err(RuntimeError(
+                        "attempt to jump outside of user code in user mode".to_string(),
+                    ));
+                }
                 self.push_word(self.ip)?;
                 self.ip = addr;
             }
@@ -404,6 +411,8 @@ impl Vm {
         // draw static UI once
         self.draw_static_ui().map_err(wrap_err)?;
 
+        let mut error_msg: Option<String> = None;
+
         loop {
             // quit check
             if event::poll(Duration::from_millis(0)).map_err(wrap_err)? {
@@ -415,9 +424,21 @@ impl Vm {
             }
 
             // execute one instruction (may mark video as dirty)
-            if running && self.exec_instruction()? {
-                running = false;
+            if running {
+                match self.exec_instruction() {
+                    Err(e) => {
+                        running = false;
+                        error_msg = Some(format!("Error: {}", e))
+                    }
+                    Ok(true) => {
+                        running = false;
+                        error_msg = Some("Machine halted".to_string())
+                    }
+                    _ => {}
+                }
             }
+
+            self.draw_footer(error_msg.as_deref()).map_err(wrap_err)?;
 
             // only redraw if needed
             if self.video.is_dirty() {
@@ -462,6 +483,29 @@ impl Vm {
             MoveTo(x_offset as u16, (y_offset + 2 + VIDEO_HEIGHT) as u16)
         )?;
         writeln!(out, "{}", bottom)?;
+        out.flush()?;
+        Ok(())
+    }
+
+    fn draw_footer(&self, error: Option<&str>) -> std::io::Result<()> {
+        let mut out = stdout();
+        let (term_width, term_height) = size()?;
+
+        let frame_width = VIDEO_WIDTH + 2;
+        let frame_height = VIDEO_HEIGHT + 3;
+        let x_offset = (term_width as usize - frame_width).max(0) / 2;
+        let y_offset = (term_height as usize - frame_height).max(0) / 2;
+
+        // footer position: below the video frame
+        let footer_y = y_offset + frame_height;
+        execute!(out, MoveTo(x_offset as u16, footer_y as u16))?;
+        write!(out, "Press 'q' to quit")?;
+
+        if let Some(msg) = error {
+            execute!(out, MoveTo(x_offset as u16, (footer_y + 1) as u16))?;
+            write!(out, "{}", msg)?;
+        }
+
         out.flush()?;
         Ok(())
     }

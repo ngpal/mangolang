@@ -33,14 +33,18 @@ Instruction Set (VM v0.1.1)
 
 ### **0x2\_ — Jumps & Branches**
 
-| Opcode | Mnemonic | Operands | Notes                                  |
-| ------ | -------- | -------- | -------------------------------------- |
-| 0x20   | JMP8     | rel8     | jump relative (signed 8-bit)           |
-| 0x21   | JLT8     | rel8     | jump if less-than                      |
-| 0x22   | JGT8     | rel8     | jump if greater-than                   |
-| 0x23   | JEQ8     | rel8     | jump if equal                          |
-| 0x24   | CALL     | addr16   | pushes ip onto stack and jumps to addr |
-| 0x25   | RET      | -        | pops from stack into ip                |
+| Opcode | Mnemonic          | Operands | Notes                                  |
+| ------ | ----------------- | -------- | -------------------------------------- |
+| 0x20   | JMP8 (depricated) | rel8     | jump relative (signed 8-bit)           |
+| 0x21   | JLT8 (depricated) | rel8     | jump if less-than                      |
+| 0x22   | JGT8 (depricated) | rel8     | jump if greater-than                   |
+| 0x23   | JEQ8 (depricated) | rel8     | jump if equal                          |
+| 0x24   | CALL              | addr16   | pushes ip onto stack and jumps to addr |
+| 0x25   | RET               | -        | pops from stack into ip                |
+| 0x26   | JMP               | rel16    | jump relative (signed 16-bit)          |
+| 0x27   | JLT               | rel16    | jump if less-than                      |
+| 0x28   | JGT               | rel16    | jump if greater-than                   |
+| 0x29   | JEQ               | rel16    | jump if equal                          |
 
 ### **0x3\_ — Integer Arithmetic**
 

@@ -399,7 +399,11 @@ main:
 - [x] imul and idiv subroutines are horribly inefficient. fix that
 - [x] normal running mode to run at full speed
 
-# 12-10-2025
+# 14-10-2025
+
+- [ ] fix nasty jump bug for the loop on `fib.mg`
+  - [ ] found it. 8 bit jumps arent doing it anymore
+    - [ ] Add 16 bit rel jump instructions
 
 - [ ] README
 - [ ] allow multiple files
