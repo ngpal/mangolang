@@ -35,7 +35,6 @@ impl Video {
     pub fn put_char(&mut self, ch: u8) {
         if ch == b'\n' {
             self.set_cur(self.get_cur() + VIDEO_WIDTH);
-            self.inc_cur();
         } else if ch == b'\r' {
             self.set_cur((self.get_cur() / VIDEO_WIDTH) * VIDEO_WIDTH);
         } else {

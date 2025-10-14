@@ -439,7 +439,7 @@ impl<'a> Debugger<'a> {
             ),
             Span::raw("V="),
             Span::styled(
-                if f.v { "1" } else { "0 " },
+                if f.v { "1 " } else { "0 " },
                 Style::default().fg(if f.v { Color::Green } else { Color::Red }),
             ),
             Span::raw("K="),

@@ -159,6 +159,7 @@ fn unescape_string(s: &str) -> String {
             if let Some(&next) = chars.peek() {
                 let escaped = match next {
                     'n' => '\n',
+                    'r' => '\r',
                     '\\' => '\\',
                     '"' => '"',
                     other => other, // unknown escapes treated literally

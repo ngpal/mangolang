@@ -1,4 +1,7 @@
 @section data
+__str_2 = "beep boop fib fub!"
+__str_0 = ". "
+__str_1 = "\r\n"
 @section text
 CALL main
 HALT
@@ -22,31 +25,18 @@ ADD
 STR [fp, -2]
 PUSH16 0
 STR [fp, -4]
-LDR [fp, 0]
-PUSH16 0
-CMP
-JLT L0
-JMP L2
 
 L0:
-PUSH16 45
-POPR r0
-INT 0
-LDR [fp, 0]
-NEG
-STR [fp, 0]
-
-L2:
 LDR [fp, 0]
 PUSH16 0
 CMP
-JEQ L5
-JMP L7
-
-L5:
+JEQ L2
 JMP L4
 
-L7:
+L2:
+JMP L1
+
+L4:
 LDR [fp, 0]
 PUSH16 10
 MOD
@@ -68,9 +58,9 @@ LDR [fp, 0]
 PUSH16 10
 DIV
 STR [fp, 0]
-JMP L2
+JMP L0
 
-L4:
+L1:
 LDR [fp, -4]
 PUSH16 1
 SUB
@@ -78,13 +68,13 @@ STR [fp, -4]
 LDR [fp, -4]
 PUSH16 0
 CMP
-JLT L10
-JMP L12
-
-L10:
+JLT L7
 JMP L9
 
-L12:
+L7:
+JMP L6
+
+L9:
 LDR [fp, -2]
 LDR [fp, -4]
 PUSH16 1
@@ -93,9 +83,9 @@ ADD
 LDB
 POPR r0
 INT 0
-JMP L4
+JMP L1
 
-L9:
+L6:
 MOV sp, fp
 POPR fp
 RET
@@ -110,11 +100,11 @@ POPR sp
 LDR [fp, 6]
 PUSH16 1
 CMP
-JGT L15
-JMP L13
-JMP L15
+JGT L12
+JMP L10
+JMP L12
 
-L13:
+L10:
 PUSH16 1
 LDR [fp, 8]
 LDR [fp, 6]
@@ -123,7 +113,7 @@ MUL
 ADD
 STW
 
-L15:
+L12:
 LDR [fp, 8]
 LDR [fp, 6]
 PUSH16 2
@@ -132,11 +122,11 @@ ADD
 LDW
 PUSH16 0
 CMP
-JEQ L18
-JMP L16
-JMP L18
+JEQ L15
+JMP L13
+JMP L15
 
-L16:
+L13:
 LDR [fp, 8]
 LDR [fp, 6]
 PUSH16 2
@@ -148,7 +138,7 @@ MOV sp, fp
 POPR fp
 RET
 
-L18:
+L15:
 PUSH16 0
 LDR [fp, 8]
 LDR [fp, 6]
@@ -187,6 +177,51 @@ STR [fp, 10]
 MOV sp, fp
 POPR fp
 RET
+MOV sp, fp
+POPR fp
+RET
+
+print_string:
+PUSHR fp
+MOV fp, sp
+PUSH16 65534
+PUSHR fp
+ADD
+POPR sp
+PUSH16 0
+STR [fp, 0]
+
+L16:
+LDR [fp, 6]
+LDR [fp, 0]
+PUSH16 1
+MUL
+ADD
+LDB
+PUSH16 0
+CMP
+JEQ L18
+JMP L20
+
+L18:
+JMP L17
+
+L20:
+LDR [fp, 6]
+LDR [fp, 0]
+PUSH16 1
+MUL
+ADD
+LDB
+POPR r0
+INT 0
+LDR [fp, 0]
+PUSH16 1
+ADD
+STR [fp, 0]
+JMP L16
+
+L17:
 MOV sp, fp
 POPR fp
 RET
@@ -200,10 +235,10 @@ ADD
 POPR sp
 PUSH16 0
 STR [fp, 0]
-PUSH16 24
+PUSH16 23
 STR [fp, -2]
 PUSHR sp
-PUSH16 48
+PUSH16 46
 SUB
 POPR sp
 PUSHR sp
@@ -211,19 +246,19 @@ PUSH16 2
 ADD
 STR [fp, -4]
 
-L19:
+L21:
 LDR [fp, 0]
 LDR [fp, -2]
 PUSH16 1
 SUB
 CMP
-JGT L21
-JMP L23
-
-L21:
-JMP L20
+JGT L23
+JMP L25
 
 L23:
+JMP L22
+
+L25:
 PUSH16 0
 LDR [fp, -4]
 LDR [fp, 0]
@@ -235,23 +270,23 @@ LDR [fp, 0]
 PUSH16 1
 ADD
 STR [fp, 0]
-JMP L19
+JMP L21
 
-L20:
+L22:
 PUSH16 0
 STR [fp, 0]
 
-L24:
+L26:
 LDR [fp, 0]
 LDR [fp, -2]
 CMP
-JEQ L26
-JMP L28
-
-L26:
-JMP L25
+JEQ L28
+JMP L30
 
 L28:
+JMP L27
+
+L30:
 LDR [fp, 0]
 PUSH16 1
 ADD
@@ -262,12 +297,14 @@ PUSH16 1
 MUL
 ADD
 POPR sp
-PUSH16 46
-POPR r0
-INT 0
-PUSH16 32
-POPR r0
-INT 0
+DATA __str_0
+CALL print_string
+PUSHR sp
+PUSH16 2
+PUSH16 1
+MUL
+ADD
+POPR sp
 PUSH16 0
 LDR [fp, -4]
 LDR [fp, 0]
@@ -285,19 +322,29 @@ PUSH16 1
 MUL
 ADD
 POPR sp
-PUSH16 10
-POPR r0
-INT 0
-PUSH16 13
-POPR r0
-INT 0
+DATA __str_1
+CALL print_string
+PUSHR sp
+PUSH16 2
+PUSH16 1
+MUL
+ADD
+POPR sp
 LDR [fp, 0]
 PUSH16 1
 ADD
 STR [fp, 0]
-JMP L24
+JMP L26
 
-L25:
+L27:
+DATA __str_2
+CALL print_string
+PUSHR sp
+PUSH16 2
+PUSH16 1
+MUL
+ADD
+POPR sp
 MOV sp, fp
 POPR fp
 RET

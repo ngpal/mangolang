@@ -405,6 +405,7 @@ main:
   - [x] found it. 8 bit jumps arent doing it anymore
     - [x] Add 16 bit rel jump instructions
 
+- [ ] while loops
 - [ ] README
 - [ ] allow multiple files
   - [ ] some level of label scrambling for handling namespace collisions on the assembler level

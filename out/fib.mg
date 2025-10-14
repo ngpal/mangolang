@@ -3,10 +3,10 @@ fn print_num(n: int) {
 	var digits[5: char];
 	var c = 0;
 
-	if q < 0 {
-		disp '-';
-		q = -q
-	}
+	// if q < 0 {
+	// 	disp '-';
+	// 	q = -q
+	// }
 
 	loop {
 		if q == 0 {
@@ -43,10 +43,22 @@ fn fib(mem: [int], n: int) -> int {
 	return res;
 }
 
+fn print_string(str: [char]) {
+	var i = 0;
+	loop {
+		if str[i] as int == 0 {
+			break;
+		}
+
+		disp str[i];
+		i = i + 1;
+	}
+}
+
 fn main() {
 	var i = 0;
-	var nums = 24;
-	var mem[24: int];
+	var nums = 23;
+	var mem[23: int];
 
 	// initialize mem to 0s
 	loop {
@@ -65,11 +77,11 @@ fn main() {
 		}
 	
  		print_num(i + 1);
-		disp '.';
-		disp ' ';
+		print_string(". ");
 		print_num(fib(mem, i));
-		disp '\n';
-		disp '\r';
+		print_string("\r\n")
 		i = i + 1;
 	}
+
+	print_string("beep boop fib fub!")
 }

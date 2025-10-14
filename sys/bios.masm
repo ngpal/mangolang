@@ -113,5 +113,4 @@ load_user_loop:
 	JMP     load_user_loop
 
 end:
-	BKPT
 	IRET

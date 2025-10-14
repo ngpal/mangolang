@@ -70,7 +70,8 @@ pub fn link_objects(objects: Vec<Vec<u8>>, base: u16) -> LinkerResult<Vec<u8>> {
             if addr != 0xFFFF {
                 // its a
                 if addr >= instr_len as u16 {
-                    addr = instr_len as u16 - addr + data_base as u16;
+                    let offset = addr - instr_len as u16;
+                    addr = data_base as u16 + offset;
                 } else {
                     addr += instr_base as u16;
                 }
