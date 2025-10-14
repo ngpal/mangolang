@@ -85,7 +85,7 @@ impl Instr {
             Instr::Stb => 1,
             Instr::Call => 3,
             Instr::Ret => 1,
-            Instr::Jmp | Instr::Jlt | Instr::Jgt | Instr::Jeq => 2,
+            Instr::Jmp | Instr::Jlt | Instr::Jgt | Instr::Jeq => 3,
             Instr::Int => 2,
             Instr::Iret => 1,
             Instr::Bkpt => 1,

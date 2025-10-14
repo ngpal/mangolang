@@ -41,10 +41,10 @@ Instruction Set (VM v0.1.1)
 | 0x23   | JEQ8 (depricated) | rel8     | jump if equal                          |
 | 0x24   | CALL              | addr16   | pushes ip onto stack and jumps to addr |
 | 0x25   | RET               | -        | pops from stack into ip                |
-| 0x26   | JMP               | rel16    | jump relative (signed 16-bit)          |
-| 0x27   | JLT               | rel16    | jump if less-than                      |
-| 0x28   | JGT               | rel16    | jump if greater-than                   |
-| 0x29   | JEQ               | rel16    | jump if equal                          |
+| 0x26   | JMP16             | rel16    | jump relative (signed 16-bit)          |
+| 0x27   | JLT16             | rel16    | jump if less-than                      |
+| 0x28   | JGT16             | rel16    | jump if greater-than                   |
+| 0x29   | JEQ16             | rel16    | jump if equal                          |
 
 ### **0x3\_ — Integer Arithmetic**
 

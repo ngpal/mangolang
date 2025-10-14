@@ -97,9 +97,9 @@ fn main() {
                 buf[..payload.len()].copy_from_slice(payload);
                 if disk.write_sector(&buf, addr) {
                     disk.persist_table();
-                    println!("wrote {} bytes to sector {:04X}", payload.len(), addr);
+                    println!("wrote {} bytes to sector 0x{:04X}", payload.len(), addr);
                 } else {
-                    eprintln!("failed to write sector {:04X}", addr);
+                    eprintln!("failed to write sector 0x{:04X}", addr);
                 }
             } else {
                 // flexible: spill across multiple sectors
@@ -110,13 +110,13 @@ fn main() {
                     let mut buf = [0u8; 256];
                     buf[..end - start].copy_from_slice(&payload[start..end]);
                     if !disk.write_sector(&buf, addr + i as u16) {
-                        eprintln!("failed to write sector {:04X}", addr + i as u16);
+                        eprintln!("failed to write sector 0x{:04X}", addr + i as u16);
                         process::exit(1);
                     }
                 }
                 disk.persist_table();
                 println!(
-                    "wrote {} sector(s) ({} bytes total) starting from {:04X}",
+                    "wrote {} sector(s) ({} bytes total) starting from 0x{:04X}",
                     total_sectors,
                     payload.len(),
                     addr
@@ -129,7 +129,7 @@ fn main() {
             let disk = DiskDriver::new();
             let data = disk.get_sector(addr);
             fs::write(&out, &data).expect("failed to write output");
-            println!("dumped sector {:04X} -> {}", addr, out);
+            println!("dumped sector 0x{:04X} -> {}", addr, out);
         }
     }
 }

@@ -401,9 +401,9 @@ main:
 
 # 14-10-2025
 
-- [ ] fix nasty jump bug for the loop on `fib.mg`
-  - [ ] found it. 8 bit jumps arent doing it anymore
-    - [ ] Add 16 bit rel jump instructions
+- [x] fix nasty jump bug for the loop on `fib.mg`
+  - [x] found it. 8 bit jumps arent doing it anymore
+    - [x] Add 16 bit rel jump instructions
 
 - [ ] README
 - [ ] allow multiple files
@@ -428,6 +428,7 @@ main:
   - [ ] dead code analysis
   - [ ] additions by 0
   - [ ] mult by 1
+  - [ ] jump optimizations
 - [ ] constants
 - [ ] functions as parameters
 - [ ] register based arithmetic instructions

@@ -334,42 +334,30 @@ impl<'a> Debugger<'a> {
             0x13 => "STW".into(),
             0x16 => "LDB".into(),
             0x17 => "STB".into(),
-            0x20 => {
-                format!("JMP8 {}", self.vm.memory[addr + 1] as i8)
-            }
-            0x21 => {
-                format!("JLT8 {}", self.vm.memory[addr + 1] as i8)
-            }
-            0x22 => {
-                format!("JGT8 {}", self.vm.memory[addr + 1] as i8)
-            }
-            0x23 => {
-                format!("JEQ8 {}", self.vm.memory[addr + 1] as i8)
-            }
             0x24 => {
                 let addr16 =
-                    u16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
+                    i16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
                 format!("CALL 0x{:04X}", addr16)
             }
             0x25 => "RET".to_string(),
             0x26 => {
                 let addr16 =
-                    u16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
+                    i16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
                 format!("JMP {}", addr16)
             }
             0x27 => {
                 let addr16 =
-                    u16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
+                    i16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
                 format!("JLT {}", addr16)
             }
             0x28 => {
                 let addr16 =
-                    u16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
+                    i16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
                 format!("JGT {}", addr16)
             }
             0x29 => {
                 let addr16 =
-                    u16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
+                    i16::from_le_bytes([self.vm.memory[addr + 1], self.vm.memory[addr + 2]]);
                 format!("JEQ {}", addr16)
             }
             0x30 => "ADD".into(),
@@ -451,7 +439,7 @@ impl<'a> Debugger<'a> {
             ),
             Span::raw("V="),
             Span::styled(
-                if f.v { "1" } else { "0" },
+                if f.v { "1" } else { "0 " },
                 Style::default().fg(if f.v { Color::Green } else { Color::Red }),
             ),
             Span::raw("K="),

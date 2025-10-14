@@ -123,6 +123,24 @@ fn parse_imm16(token: Option<&str>, lineno: usize) -> AssemblerResult<u16> {
     })
 }
 
+fn parse_imm16_signed(token: Option<&str>, lineno: usize) -> AssemblerResult<i16> {
+    let tok = token.ok_or_else(|| AssemblerError {
+        msg: "missing 16-bit immediate".into(),
+        line: Some(lineno + 1),
+    })?;
+
+    let val = if let Some(hex) = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")) {
+        i16::from_str_radix(hex, 16)
+    } else {
+        tok.parse::<i16>()
+    };
+
+    val.map_err(|_| AssemblerError {
+        msg: format!("invalid 16-bit signed immediate `{}`", tok),
+        line: Some(lineno + 1),
+    })
+}
+
 fn parse_label(token: Option<&str>, lineno: usize) -> AssemblerResult<String> {
     Ok(token
         .ok_or_else(|| AssemblerError {
@@ -306,16 +324,16 @@ pub fn parse_assembly(input: &str) -> AssemblerResult<Assembly> {
 
             // jumps & calls (label forms)
             "jmp" => Instr::JmpLbl(parse_label(Some(rest), lineno)?),
-            "jmp8" => Instr::Jmp(parse_imm8_signed(Some(rest), lineno)?),
+            "jmp16" => Instr::Jmp(parse_imm16_signed(Some(rest), lineno)?),
 
             "jlt" => Instr::JltLbl(parse_label(Some(rest), lineno)?),
-            "jlt8" => Instr::Jlt(parse_imm8_signed(Some(rest), lineno)?),
+            "jlt16" => Instr::Jlt(parse_imm16_signed(Some(rest), lineno)?),
 
             "jgt" => Instr::JgtLbl(parse_label(Some(rest), lineno)?),
-            "jgt8" => Instr::Jgt(parse_imm8_signed(Some(rest), lineno)?),
+            "jgt16" => Instr::Jgt(parse_imm16_signed(Some(rest), lineno)?),
 
             "jeq" => Instr::JeqLbl(parse_label(Some(rest), lineno)?),
-            "jeq8" => Instr::Jeq(parse_imm8_signed(Some(rest), lineno)?),
+            "jeq16" => Instr::Jeq(parse_imm16_signed(Some(rest), lineno)?),
             "call" => Instr::CallLbl(parse_label(Some(rest), lineno)?),
 
             // integer arithmetic

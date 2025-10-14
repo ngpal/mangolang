@@ -14,7 +14,7 @@ use crate::{
 #[repr(u8)]
 pub enum RelocType {
     Abs16 = 0,
-    Rel8 = 1, // relative 8-bit displacement (e.g. jmp/jlt/jgt/jeq)
+    Rel16 = 1, // relative 8-bit displacement (e.g. jmp/jlt/jgt/jeq)
     Data = 2,
 }
 
@@ -205,12 +205,12 @@ pub fn gen_bin(instrs: &Vec<Instr>) -> Vec<u8> {
             Instr::Stw => vec![0x13],
             Instr::Ldb => vec![0x16],
             Instr::Stb => vec![0x17],
-            Instr::Jmp(displ) => vec![0x20, *displ as u8],
-            Instr::Jlt(displ) => vec![0x21, *displ as u8],
-            Instr::Jgt(displ) => vec![0x22, *displ as u8],
-            Instr::Jeq(displ) => vec![0x23, *displ as u8],
             Instr::Call(addr) => vec![0x24, (*addr & 0xFF) as u8, (*addr >> 8) as u8],
             Instr::Ret => vec![0x25],
+            Instr::Jmp(displ) => vec![0x26, (*displ & 0xFF) as u8, (*displ >> 8) as u8],
+            Instr::Jlt(displ) => vec![0x27, (*displ & 0xFF) as u8, (*displ >> 8) as u8],
+            Instr::Jgt(displ) => vec![0x28, (*displ & 0xFF) as u8, (*displ >> 8) as u8],
+            Instr::Jeq(displ) => vec![0x29, (*displ & 0xFF) as u8, (*displ >> 8) as u8],
             Instr::Add => vec![0x30],
             Instr::Cmp => vec![0x35],
             Instr::Not => vec![0x40],
@@ -291,7 +291,7 @@ pub fn assemble_object(assembly: &Assembly) -> AssemblerResult<Vec<u8>> {
                     // Back reference
                     Some(addr) => {
                         (*addr as isize - (byte_pos as isize + instr.clone().byte_len() as isize))
-                            as i8
+                            as i16
                     }
                     // Forward reference
                     None => {
@@ -299,9 +299,9 @@ pub fn assemble_object(assembly: &Assembly) -> AssemblerResult<Vec<u8>> {
                         relocs.push(Reloc {
                             offset: byte_pos + 1,
                             sym_name: name.to_string(),
-                            kind: RelocType::Rel8,
+                            kind: RelocType::Rel16,
                         });
-                        -1 // 0xFF
+                        -1 // 0xFFFF
                     }
                 };
 

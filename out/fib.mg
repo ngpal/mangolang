@@ -45,8 +45,8 @@ fn fib(mem: [int], n: int) -> int {
 
 fn main() {
 	var i = 0;
-	var nums = 1;
-	var mem[1: int];
+	var nums = 24;
+	var mem[24: int];
 
 	// initialize mem to 0s
 	loop {
@@ -64,13 +64,12 @@ fn main() {
 			break;
 		}
 	
- 		// print_num(i + 1);
-		// disp '.';
+ 		print_num(i + 1);
+		disp '.';
 		disp ' ';
 		print_num(fib(mem, i));
 		disp '\n';
 		disp '\r';
 		i = i + 1;
-		breakpoint;
 	}
 }
