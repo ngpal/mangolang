@@ -3,118 +3,64 @@
 CALL main
 HALT
 
-print_num:
-PUSHR fp
-MOV fp, sp
-PUSH16 65530
-PUSHR fp
-ADD
-POPR sp
-LDR [fp, 6]
-STR [fp, 0]
-PUSHR sp
-PUSH16 6
-SUB
-POPR sp
-PUSHR sp
-PUSH16 2
-ADD
-STR [fp, -2]
-PUSH16 0
-STR [fp, -4]
-LDR [fp, 0]
-PUSH16 0
-CMP
-JLT L0
-JMP L2
-
-L0:
-PUSH16 45
-POPR r0
-INT 0
-LDR [fp, 0]
-NEG
-STR [fp, 0]
-
-L2:
-LDR [fp, 0]
-PUSH16 0
-CMP
-JEQ L5
-JMP L7
-
-L5:
-JMP L4
-
-L7:
-LDR [fp, 0]
-PUSH16 10
-MOD
-PUSH16 48
-ADD
-PUSH16 255
-AND
-LDR [fp, -2]
-LDR [fp, -4]
-PUSH16 1
-MUL
-ADD
-STB
-LDR [fp, -4]
-PUSH16 1
-ADD
-STR [fp, -4]
-LDR [fp, 0]
-PUSH16 10
-DIV
-STR [fp, 0]
-JMP L2
-
-L4:
-LDR [fp, -4]
-PUSH16 1
-SUB
-STR [fp, -4]
-LDR [fp, -4]
-PUSH16 0
-CMP
-JLT L10
-JMP L12
-
-L10:
-JMP L9
-
-L12:
-LDR [fp, -2]
-LDR [fp, -4]
-PUSH16 1
-MUL
-ADD
-LDB
-POPR r0
-INT 0
-JMP L4
-
-L9:
-MOV sp, fp
-POPR fp
-RET
-
 main:
 PUSHR fp
 MOV fp, sp
-PUSH16 0
+PUSH16 65532
 PUSHR fp
 ADD
 POPR sp
-PUSH16 40000
-CALL print_num
-PUSHR sp
-PUSH16 2
+PUSH16 39
+STR [fp, 0]
+
+L0:
+LDR [fp, 0]
 PUSH16 1
-MUL
-ADD
-POPR sp
+CMP
+JLT L2
+JMP L4
+
+L2:
+JMP L1
+
+L4:
+LDR [fp, 0]
+STR [fp, -2]
+
+L5:
+LDR [fp, -2]
+PUSH16 1
+CMP
+JLT L7
+JMP L9
+
+L7:
+JMP L6
+
+L9:
+PUSH16 42
+POPR r0
+INT 0
+LDR [fp, -2]
+PUSH16 1
+SUB
+STR [fp, -2]
+JMP L5
+
+L6:
+PUSH16 13
+POPR r0
+INT 0
+PUSH16 10
+POPR r0
+INT 0
+LDR [fp, 0]
+PUSH16 2
+SUB
+STR [fp, 0]
+JMP L0
+
+L1:
 MOV sp, fp
 POPR fp
 RET

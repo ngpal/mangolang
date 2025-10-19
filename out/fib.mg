@@ -3,10 +3,10 @@ fn print_num(n: int) {
 	var digits[5: char];
 	var c = 0;
 
-	// if q < 0 {
-	// 	disp '-';
-	// 	q = -q
-	// }
+	if q < 0 {
+	 	disp '-';
+	 	q = -q;
+	}
 
 	loop {
 		if q == 0 {
@@ -76,12 +76,10 @@ fn main() {
 			break;
 		}
 	
- 		print_num(i + 1);
-		print_string(". ");
 		print_num(fib(mem, i));
-		print_string("\r\n")
+		print_string("\r\n");
 		i = i + 1;
 	}
 
-	print_string("beep boop fib fub!")
+	print_string("power of memoization!")
 }
