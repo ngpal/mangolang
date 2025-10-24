@@ -217,7 +217,7 @@ Stack grows down (top of stack is higher memory)
 
 - [x] constants in assembly
 - [x] rewrite print subroutine with the constants
-- [ ] stack allocated arrays
+- [x] stack allocated arrays
   - [x] lexer
   - [x] ast
     - [x] indexing
