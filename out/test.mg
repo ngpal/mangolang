@@ -1,10 +1,6 @@
 fn main() {
 	var i = 39;
-	loop {
-		if i < 1 {
-			break;
-		}
-
+	while i < 1 {
 		var j = i; 
 		loop {
 			if j < 1 {
