@@ -1,18 +1,10 @@
 fn main() {
-	var i = 39;
-	while i < 1 {
-		var j = i; 
-		loop {
-			if j < 1 {
-				break;
-			}
+	var i = 3;
+	while i > 1 {
+		disp ((i + '0' as int) as char);
+		disp '\n';
+		disp '\r';
 
-			disp '*'
-			j = j - 1;
-		}
-		disp '\r'
-		disp '\n'
-
-		i = i - 2;
+		i = i - 1;
 	}
 }
