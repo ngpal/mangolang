@@ -409,6 +409,25 @@ main:
 
 - [x] while loops
 
+- [ ] introduce shorthand syntax for variable updations (`+=`, `-=`, etc.)
+
+> squeeze in a couple of optimization layers in between semantic analyzer and code generation
+
+- [ ] constant folding
+- [ ] dead code analysis
+- [ ] additions by 0
+- [ ] mult by 1
+- [ ] jump optimizations
+
+- [ ] introduce `uint` type
+- [ ] allow only `uint`s to index
+- [ ] send all errors together instead of bubbling up
+- [ ] heap allocation!
+- [ ] vectors!
+- [ ] floats?
+- [ ] constants
+- [ ] functions as parameters
+- [ ] register based arithmetic instructions
 - [ ] README
 - [ ] allow multiple files
   - [ ] some level of label scrambling for handling namespace collisions on the assembler level
@@ -419,23 +438,6 @@ main:
 - [ ] stack balancing
   - [ ] assigning to `_` discards the value
   - [ ] statements that have `eval_type != Unit` can be considered the same as `var _ = stmt;`
-- [ ] inctroduce += syntax
-- [ ] introduce `uint` type
-- [ ] allow only `uint`s to index
-- [ ] send all errors together instead of bubbling up
-- [ ] heap allocation!
-- [ ] vectors!
-- [ ] floats?
-- [ ] implement an IR for base level optimizations
-  - [ ] implement IR
-  - [ ] constant folding
-  - [ ] dead code analysis
-  - [ ] additions by 0
-  - [ ] mult by 1
-  - [ ] jump optimizations
-- [ ] constants
-- [ ] functions as parameters
-- [ ] register based arithmetic instructions
 
 ## Plans for the vm
 
