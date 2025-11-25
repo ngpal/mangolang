@@ -409,7 +409,11 @@ main:
 
 - [x] while loops
 
+# 25-11-2025
+
 - [ ] introduce shorthand syntax for variable updations (`+=`, `-=`, etc.)
+  - [x] lexer
+  - [ ] parser - dont introduce new AST node, reuse old
 
 > squeeze in a couple of optimization layers in between semantic analyzer and code generation
 
@@ -418,6 +422,7 @@ main:
 - [ ] additions by 0
 - [ ] mult by 1
 - [ ] jump optimizations
+- [ ] loop invariance hoisting
 
 - [ ] introduce `uint` type
 - [ ] allow only `uint`s to index

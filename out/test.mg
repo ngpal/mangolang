@@ -1,5 +1,5 @@
 fn main() {
-	var i = 100;
+	var i = 3;
 	while i > 1 {
 		if i % 2 == 0 {
 			disp ((i + '0' as int) as char);
