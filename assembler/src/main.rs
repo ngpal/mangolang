@@ -45,15 +45,15 @@ pub struct Object {
 const OBJ_FILE_VERSION: u16 = 2;
 
 impl Object {
-    /// Serialize object into binary:
-    /// [ "MOBJ" (4) ][version u16]
-    /// [instr_bytes_len u16][data_bytes_len u16]
-    /// [symtable_len u16][reloctable_len u16]
-    /// [instr_bytes...][data_bytes...]
-    /// [symtable...][reloctable...]
-    ///
-    /// symtable: repeated (name bytes, 0u8, u16 addr)
-    /// reloctable: repeated (u16 offset, u16 sym_index, u8 kind)
+    // Serialize object into binary:
+    // [ "MOBJ" (4) ][version u16]
+    // [instr_bytes_len u16][data_bytes_len u16]
+    // [symtable_len u16][reloctable_len u16]
+    // [instr_bytes...][data_bytes...]
+    // [symtable...][reloctable...]
+    //
+    // symtable: repeated (name bytes, 0u8, u16 addr)
+    // reloctable: repeated (u16 offset, u16 sym_index, u8 kind)
 
     pub fn to_bin(&self) -> Vec<u8> {
         let mut out = Vec::new();
