@@ -413,7 +413,11 @@ main:
 
 - [ ] introduce shorthand syntax for variable updations (`+=`, `-=`, etc.)
   - [x] lexer
-  - [ ] parser - dont introduce new AST node, reuse old
+  - [x] AST
+  - [x] parser
+  - [x] type checker
+  - [ ] pass semantic
+  - [ ] codegen
 
 > squeeze in a couple of optimization layers in between semantic analyzer and code generation
 
