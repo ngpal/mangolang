@@ -416,7 +416,7 @@ main:
   - [x] AST
   - [x] parser
   - [x] type checker
-  - [ ] pass semantic
+  - [x] pass semantic
   - [ ] codegen
 
 > squeeze in a couple of optimization layers in between semantic analyzer and code generation
