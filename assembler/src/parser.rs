@@ -22,13 +22,13 @@ fn extract_constants(input: &str) -> HashMap<String, String> {
     let mut macros = HashMap::new();
     for line in input.lines() {
         let line = line.trim();
-        if let Some(rest) = line.strip_prefix("@define") {
-            if let Some((name, val)) = rest.split_once('=') {
-                let name = name.trim();
-                let val = val.trim();
-                if !name.is_empty() && !val.is_empty() {
-                    macros.insert(name.to_string(), val.to_string());
-                }
+        if let Some(rest) = line.strip_prefix("@define")
+            && let Some((name, val)) = rest.split_once('=')
+        {
+            let name = name.trim();
+            let val = val.trim();
+            if !name.is_empty() && !val.is_empty() {
+                macros.insert(name.to_string(), val.to_string());
             }
         }
     }

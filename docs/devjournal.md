@@ -411,13 +411,13 @@ main:
 
 # 25-11-2025
 
-- [ ] introduce shorthand syntax for variable updations (`+=`, `-=`, etc.)
+- [x] introduce shorthand syntax for variable updations (`+=`, `-=`, etc.)
   - [x] lexer
   - [x] AST
   - [x] parser
   - [x] type checker
   - [x] pass semantic
-  - [ ] codegen
+  - [x] codegen
 
 > squeeze in a couple of optimization layers in between semantic analyzer and code generation
 
