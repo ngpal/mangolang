@@ -419,6 +419,12 @@ main:
   - [x] pass semantic
   - [x] codegen
 
+# 30-11-2025
+
+## Restructuring plans
+
+wa- [ ] Split up the project into **compiler**, **assembler**, **linker**, **VM core** and **video interface**
+
 > squeeze in a couple of optimization layers in between semantic analyzer and code generation
 
 - [ ] constant folding
